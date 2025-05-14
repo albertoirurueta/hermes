@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ListItemChangeDetector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.irurueta:hermes</a> &gt; <a href="index.source.html" class="el_package">com.irurueta.hermes</a> &gt; <span class="el_source">ListItemChangeDetector.java</span></div><h1>ListItemChangeDetector.java</h1><pre class="source lang-java linenums">/*
+ * Copyright (C) 2025 Alberto Irurueta Carro (alberto@irurueta.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.irurueta.hermes;
+
+import java.util.List;
+import java.util.stream.IntStream;
+
+/**
+ * Class to detect changes between two lists of items.
+ * Notice that returned changes in this class indicate the positions of the items with respect to the old or the new
+ * list (regardless of the order in which the change is applied).
+ *
+ * @param &lt;T&gt; type of items.
+ */
+public class ListItemChangeDetector&lt;T&gt; extends AbstractListItemChangeDetector&lt;T&gt; {
+
+    /**
+     * Comparator to determine whether two items are equal (e.g., by their id).
+     */
+    private final ItemComparator&lt;T&gt; itemComparator;
+
+    /**
+     * Comparator to determine whether the content of two items is equal.
+     */
+    private final ItemContentComparator&lt;T&gt; itemContentComparator;
+
+    /**
+     * Constructor.
+     *
+     * @param itemComparator comparator to determine whether two items are equal.
+     * @param itemContentComparator comparator to determine whether the content of two items is equal.
+     * @throws IllegalArgumentException if any of the parameters is null.
+     */
+    public ListItemChangeDetector(final ItemComparator&lt;T&gt; itemComparator,
+<span class="fc" id="L49">                                  final ItemContentComparator&lt;T&gt; itemContentComparator) {</span>
+
+<span class="fc bfc" id="L51" title="All 4 branches covered.">        if (itemComparator == null || itemContentComparator == null) {</span>
+<span class="fc" id="L52">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="fc" id="L55">        this.itemComparator = itemComparator;</span>
+<span class="fc" id="L56">        this.itemContentComparator = itemContentComparator;</span>
+<span class="fc" id="L57">    }</span>
+
+    /**
+     * Determines whether the content of an item has changed.
+     *
+     * @param newItem new item.
+     * @param oldItem old item.
+     * @return true if the content of the item has changed, false otherwise.
+     */
+    @Override
+    protected boolean hasContentChanged(final T newItem, final T oldItem) {
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        return !itemContentComparator.equalContent(newItem, oldItem);</span>
+    }
+
+    /**
+     * Determines whether an item is not contained in a list.
+     *
+     * @param items list of items.
+     * @param item item to be checked.
+     * @return true if the item is not contained in the list, false otherwise.
+     */
+    @Override
+    protected boolean notContains(final List&lt;T&gt; items, final T item) {
+<span class="fc" id="L80">        return items.stream().noneMatch(newItem -&gt; itemComparator.equals(newItem, item));</span>
+    }
+
+    /**
+     * Determines the index of an item in a list.
+     *
+     * @param items list of items.
+     * @param item item to be checked.
+     * @return index of the item in the list, or -1 if the item is not contained in the list.
+     */
+    @Override
+    protected int indexOf(final List&lt;T&gt; items, final T item) {
+<span class="fc" id="L92">        return IntStream.range(0, items.size()).filter(index -&gt; {</span>
+<span class="fc" id="L93">            final var otherItem = items.get(index);</span>
+<span class="fc" id="L94">            return itemComparator.equals(item, otherItem);</span>
+<span class="fc" id="L95">        }).findFirst().orElse(-1);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

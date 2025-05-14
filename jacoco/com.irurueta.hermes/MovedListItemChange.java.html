@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MovedListItemChange.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.irurueta:hermes</a> &gt; <a href="index.source.html" class="el_package">com.irurueta.hermes</a> &gt; <span class="el_source">MovedListItemChange.java</span></div><h1>MovedListItemChange.java</h1><pre class="source lang-java linenums">/*
+ * Copyright (C) 2025 Alberto Irurueta Carro (alberto@irurueta.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.irurueta.hermes;
+
+/**
+ * Class to represent a change in a list item that has been moved to a different position.
+ *
+ * @param &lt;T&gt; type of items in the list.
+ */
+public class MovedListItemChange&lt;T&gt; extends ListItemChange {
+
+    /**
+     * Item that before being updated.
+     */
+    private final T oldItem;
+
+    /**
+     * Item after being updated.
+     */
+    private final T newItem;
+
+    /**
+     * This value indicates the position of the item before it was moved.
+     */
+    private final int oldPosition;
+
+    /**
+     * This value indicates the position of the item after being moved.
+     */
+    private final int newPosition;
+
+    /**
+     * Constructor.
+     *
+     * @param oldItem item that has been moved before being moved.
+     * @param newItem item that has been moved after being moved.
+     * @param oldPosition position of the item before it was moved.
+     * @param newPosition position of the item after being moved.
+     * @throws IllegalArgumentException if either the old or new item is null.
+     */
+    public MovedListItemChange(final T oldItem, final T newItem, final int oldPosition, final int newPosition) {
+<span class="fc" id="L56">        super(ListItemChangeAction.MOVED);</span>
+<span class="fc bfc" id="L57" title="All 4 branches covered.">        if (oldItem == null || newItem == null) {</span>
+<span class="fc" id="L58">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="fc" id="L61">        this.oldItem = oldItem;</span>
+<span class="fc" id="L62">        this.newItem = newItem;</span>
+<span class="fc" id="L63">        this.oldPosition = oldPosition;</span>
+<span class="fc" id="L64">        this.newPosition = newPosition;</span>
+<span class="fc" id="L65">    }</span>
+
+    /**
+     * Returns the item that before being updated.
+     * @return the item that before being updated.
+     */
+    public T getOldItem() {
+<span class="fc" id="L72">        return oldItem;</span>
+    }
+
+    /**
+     * Returns the item after being updated.
+     * @return the item after being updated.
+     */
+    public T getNewItem() {
+<span class="fc" id="L80">        return newItem;</span>
+    }
+
+    /**
+     * Returns the start position of the item before it was moved.
+     * @return the start position of the item before it was moved.
+     */
+    public int getOldPosition() {
+<span class="fc" id="L88">        return oldPosition;</span>
+    }
+
+    /**
+     * Returns the end position of the item after being moved.
+     * @return the end position of the item after being moved.
+     */
+    public int getNewPosition() {
+<span class="fc" id="L96">        return newPosition;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

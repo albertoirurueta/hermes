@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AbstractSequentialListItemChangeDetector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.irurueta:hermes</a> &gt; <a href="index.source.html" class="el_package">com.irurueta.hermes</a> &gt; <span class="el_source">AbstractSequentialListItemChangeDetector.java</span></div><h1>AbstractSequentialListItemChangeDetector.java</h1><pre class="source lang-java linenums">/*
+ * Copyright (C) 2025 Alberto Irurueta Carro (alberto@irurueta.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.irurueta.hermes;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Abstract class to detect changes between two lists of items.
+ * Notice that returned changes in this class indicate the positions of the items when each change is applied
+ * sequentially to the old list.
+ *
+ * @param &lt;T&gt; type of items.
+ */
+<span class="fc" id="L29">public abstract class AbstractSequentialListItemChangeDetector&lt;T&gt; {</span>
+
+    /**
+     * Detects changes between two lists of items.
+     *
+     * @param newItems new items.
+     * @param oldItems old items.
+     * @return a list of found changes.
+     */
+    public List&lt;ListItemChange&gt; detectChanges(final List&lt;T&gt; newItems, final List&lt;T&gt; oldItems) {
+<span class="fc bfc" id="L39" title="All 4 branches covered.">        if (oldItems == null || newItems == null) {</span>
+<span class="fc" id="L40">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="fc" id="L43">        final var changes = new ArrayList&lt;ListItemChange&gt;();</span>
+
+<span class="fc" id="L45">        final var newCopy = new ArrayList&lt;&gt;(newItems);</span>
+<span class="fc" id="L46">        final var oldCopy = new ArrayList&lt;&gt;(oldItems);</span>
+
+        // removes
+<span class="fc" id="L49">        changes.addAll(buildRemoves(newCopy, oldCopy));</span>
+
+        // inserts
+<span class="fc" id="L52">        changes.addAll(buildInserts(newCopy, oldCopy));</span>
+
+        // moves
+<span class="fc" id="L55">        changes.addAll(buildMoves(newCopy, oldCopy));</span>
+
+        // changed items
+<span class="fc" id="L58">        changes.addAll(buildChanges(newCopy, oldCopy));</span>
+
+<span class="fc" id="L60">        return changes;</span>
+    }
+
+    /**
+     * Determines whether the content of an item has changed.
+     *
+     * @param newItem new item.
+     * @param oldItem old item.
+     * @return true if the content of the item has changed, false otherwise.
+     */
+    protected abstract boolean hasContentChanged(final T newItem, final T oldItem);
+
+    /**
+     * Determines whether an item is not contained in a list.
+     *
+     * @param items list of items.
+     * @param item item to be checked.
+     * @return true if the item is not contained in the list, false otherwise.
+     */
+    protected abstract boolean notContains(final List&lt;T&gt; items, final T item);
+
+    /**
+     * Determines the index of an item in a list.
+     *
+     * @param items list of items.
+     * @param item item to be checked.
+     * @return index of the item in the list, or -1 if the item is not contained in the list.
+     */
+    protected abstract int indexOf(final List&lt;T&gt; items, final T item);
+
+    /**
+     * Finds removed items and build a list of detected remove changes.
+     * Notice that this method modifies the old items copy to avoid checking removed items again.
+     *
+     * @param newItemsCopy new items copy.
+     * @param oldItemsCopy old items copy.
+     * @return a list of detected remove changes.
+     */
+    private List&lt;RemovedListItemChange&lt;T&gt;&gt; buildRemoves(final List&lt;T&gt; newItemsCopy, final List&lt;T&gt; oldItemsCopy) {
+<span class="fc" id="L99">        final var removes = new ArrayList&lt;RemovedListItemChange&lt;T&gt;&gt;();</span>
+
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        for (var i = 0; i &lt; oldItemsCopy.size(); i++) {</span>
+<span class="fc" id="L102">            final var oldItem = oldItemsCopy.get(i);</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">            if (notContains(newItemsCopy, oldItem)) {</span>
+                // item has been removed on the new list, we remove it to avoid checking it again
+<span class="fc" id="L105">                oldItemsCopy.remove(i);</span>
+<span class="fc" id="L106">                removes.add(new RemovedListItemChange&lt;&gt;(oldItem, i));</span>
+                // decrease i so that next iteration checks the same position again
+<span class="fc" id="L108">                i--;</span>
+            }
+        }
+<span class="fc" id="L111">        return removes;</span>
+    }
+
+    /**
+     * Finds inserted items and build a list of detected insert changes.
+     * Notice that this method modifies the old items copy to avoid checking inserted items again.
+     *
+     * @param newItemsCopy new items copy.
+     * @param oldItemsCopy old items copy.
+     * @return a list of detected insert changes.
+     */
+    private List&lt;InsertedListItemChange&lt;T&gt;&gt; buildInserts(final List&lt;T&gt; newItemsCopy, final List&lt;T&gt; oldItemsCopy) {
+<span class="fc" id="L123">        final var inserts = new ArrayList&lt;InsertedListItemChange&lt;T&gt;&gt;();</span>
+
+<span class="fc" id="L125">        final var newSize = newItemsCopy.size();</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        for (var i = 0; i &lt; newSize; i++) {</span>
+<span class="fc" id="L127">            final var newItem = newItemsCopy.get(i);</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">            if (notContains(oldItemsCopy, newItem)) {</span>
+                // this item has been added on the new list
+<span class="fc" id="L130">                final var pos = Math.min(i, oldItemsCopy.size());</span>
+<span class="fc" id="L131">                inserts.add(new InsertedListItemChange&lt;&gt;(newItem, pos));</span>
+
+                // make old items resemble new items so that changes and moves are later detected at proper positions
+<span class="fc bfc" id="L134" title="All 2 branches covered.">                if (i &gt;= oldItemsCopy.size()) {</span>
+<span class="fc" id="L135">                    oldItemsCopy.add(newItem);</span>
+                } else {
+<span class="fc" id="L137">                    oldItemsCopy.add(i, newItem);</span>
+                }
+            }
+        }
+
+<span class="fc" id="L142">        return inserts;</span>
+    }
+
+    /**
+     * Finds moved items and build a list of detected move changes.
+     * Notice that this method modifies the old items copy to avoid checking moved items again.
+     *
+     * @param newItemsCopy new items copy.
+     * @param oldItemsCopy old items copy.
+     * @return a list of detected move changes.
+     */
+    private List&lt;MovedListItemChange&lt;T&gt;&gt; buildMoves(final List&lt;T&gt; newItemsCopy, final List&lt;T&gt; oldItemsCopy) {
+<span class="fc" id="L154">        final var moves = new ArrayList&lt;MovedListItemChange&lt;T&gt;&gt;();</span>
+
+<span class="fc" id="L156">        final var itemsToMove = new ArrayList&lt;&gt;(oldItemsCopy);</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        for (var i = 0; i &lt; itemsToMove.size(); i++) {</span>
+<span class="fc" id="L158">            final var item = itemsToMove.get(i);</span>
+
+<span class="fc" id="L160">            final var pos1 = indexOf(oldItemsCopy, item);</span>
+<span class="fc" id="L161">            final var pos2 = indexOf(newItemsCopy, item);</span>
+
+<span class="pc bpc" id="L163" title="2 of 6 branches missed.">            if (pos2 &gt;= 0 &amp;&amp; pos2 &lt; itemsToMove.size() &amp;&amp; pos1 != pos2) {</span>
+                // item has been moved
+<span class="fc" id="L165">                final var oldItem = oldItemsCopy.get(pos1);</span>
+<span class="fc" id="L166">                final var newItem = newItemsCopy.get(pos2);</span>
+<span class="fc" id="L167">                moves.add(new MovedListItemChange&lt;&gt;(oldItem, newItem, pos1, pos2));</span>
+                // remove item from old items to avoid checking it again
+<span class="fc" id="L169">                final var removedItem = oldItemsCopy.remove(pos1);</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">                if (pos2 &gt;= oldItemsCopy.size()) {</span>
+<span class="fc" id="L171">                    oldItemsCopy.add(removedItem);</span>
+                } else {
+<span class="fc" id="L173">                    oldItemsCopy.add(pos2, removedItem);</span>
+                }
+            }
+        }
+
+<span class="fc" id="L178">        return moves;</span>
+    }
+
+    /**
+     * Finds changed items and build a list of detected update changes.
+     *
+     * @param newItemsCopy new items copy.
+     * @param oldItemsCopy old items copy.
+     * @return a list of detected update changes.
+     */
+    private List&lt;UpdatedListItemChange&lt;T&gt;&gt; buildChanges(final List&lt;T&gt; newItemsCopy, final List&lt;T&gt; oldItemsCopy) {
+<span class="fc" id="L189">        final var changes = new ArrayList&lt;UpdatedListItemChange&lt;T&gt;&gt;();</span>
+
+<span class="fc" id="L191">        var pos = 0;</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        for (final var newItem : newItemsCopy) {</span>
+<span class="fc" id="L193">            final var oldPos = indexOf(oldItemsCopy, newItem);</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">            if (oldPos &gt;= 0) {</span>
+<span class="fc" id="L195">                final var oldItem = oldItemsCopy.get(oldPos);</span>
+
+                // compare both items
+<span class="fc bfc" id="L198" title="All 2 branches covered.">                if (hasContentChanged(newItem, oldItem)) {</span>
+                    // item has changed
+<span class="fc" id="L200">                    changes.add(new UpdatedListItemChange&lt;&gt;(oldItem, newItem, pos));</span>
+                }
+            }
+<span class="fc" id="L203">            pos++;</span>
+<span class="fc" id="L204">        }</span>
+
+<span class="fc" id="L206">        return changes;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
