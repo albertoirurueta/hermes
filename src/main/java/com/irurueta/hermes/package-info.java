@@ -18,10 +18,12 @@
  * Package containing classes to compare and find changes between two sets of data.
  * <p>
  * To use this library, you must take into account:
- * <ul>The collections being compared are position-aware or not (list vs. sets, maps, etc.)</ul>
- * <ul>The items in your collection implement the ComparableItem interface or not</ul>
- * <ul>For position-aware collections you want changes position values considering that changes are applied
- * sequentially or not</ul>
+ * <ul>
+ *  <li>The collections being compared are position-aware or not (list vs. sets, maps, etc.)</li>
+ *  <li>The items in your collection implement the ComparableItem interface or not</li>
+ *  <li>For position-aware collections you want changes position values considering that changes are applied
+ *  sequentially or not</li>
+ * </ul>
  *
  * Based on those three factors, the following classes should be used:
  * <ul>
