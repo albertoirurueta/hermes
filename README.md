@@ -44,7 +44,7 @@ Latest snapshot:
 <dependency>
     <groupId>com.irurueta</groupId>
     <artifactId>hermes</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.1.0-SNAPSHOT</version>
     <scope>compile</scope>
 </dependency>
 ```
