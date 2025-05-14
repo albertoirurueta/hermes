@@ -24,17 +24,20 @@
  * sequentially or not</ul>
  *
  * Based on those three factors, the following classes should be used:
- * <ul>CollectionItemChangeDetector: when comparing non-position-aware collections and collection items do NOT
- * implement any specific interface. (proper comparators must be provided).</ul>
- * <ul>ComparableCollectionItemChangeDetector: when comparing non-position-aware collections and collection items
- * implement ComparableItem interface.</ul>
- * <ul>ListItemChangeDetector: when comparing position-aware collections and collection items do NOT implement any
- * specific interface. (proper comparators must be provided).</ul>
- * <ul>ComparableListItemChangeDetector: when comparing position-aware collections and collection items, implement
- * ComparableItem interface.</ul>
- * <ul>SequentialListItemChangeDetector: when comparing position-aware collections, collection items do NOT implement
- * any specific interface, and returned changes (and their positions) are assumed to be applied sequentially.</ul>
- * <ul>SequentialComparableListItemChangeDetector: when comparing position-aware collections, collection items implement
- * ComparableItem interface, and returned changes (and their positions) are assumed to be applied sequentially.</ul>
+ * <ul>
+ *  <li>CollectionItemChangeDetector: when comparing non-position-aware collections and collection items do NOT
+ *  implement any specific interface. (proper comparators must be provided).</li>
+ *  <li>ComparableCollectionItemChangeDetector: when comparing non-position-aware collections and collection items
+ *  implement ComparableItem interface.</li>
+ *  <li>ListItemChangeDetector: when comparing position-aware collections and collection items do NOT implement any
+ *  specific interface. (proper comparators must be provided).</li>
+ *  <li>ComparableListItemChangeDetector: when comparing position-aware collections and collection items, implement
+ *  ComparableItem interface.</li>
+ *  <li>SequentialListItemChangeDetector: when comparing position-aware collections, collection items do NOT implement
+ *  any specific interface, and returned changes (and their positions) are assumed to be applied sequentially.</li>
+ *  <li>SequentialComparableListItemChangeDetector: when comparing position-aware collections, collection items
+ *  implement ComparableItem interface, and returned changes (and their positions) are assumed to be applied
+ *  sequentially.</li>
+ * </ul>
  */
 package com.irurueta.hermes;
