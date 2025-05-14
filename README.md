@@ -44,7 +44,7 @@ Latest snapshot:
 <dependency>
     <groupId>com.irurueta</groupId>
     <artifactId>hermes</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.1.0-SNAPSHOT</version>
     <scope>compile</scope>
 </dependency>
 ```
@@ -72,14 +72,17 @@ Based on those three factors, the following classes should be used:
 ## Example
 
 ```
+// Define a class to be used as item in the lists to be compared
 public record Item(int id, String content) { }
 
 ...
 
+    // Create a detector
     final var detector = new ListItemChangeDetector<Item>(
             (item1, item2) -> item1.id() == item2.id(),
             (item1, item2) -> Objects.equals(item1.content(), item2.content()));
             
+    // Create two lists to be compared
     final var item1 = new Item(1, "item1");
     final var item2 = new Item(2, "item2");
     final var item2b = new Item(2, "item2b");
@@ -89,6 +92,7 @@ public record Item(int id, String content) { }
     final var oldList = List.of(item1, item2, item3, item4);
     final var newList = List.of(item3, item2b, item1, item5);
             
+    // Detect changes between the two lists
     final var changes = detector.detectChanges(newList, oldList);            
 ```
 
