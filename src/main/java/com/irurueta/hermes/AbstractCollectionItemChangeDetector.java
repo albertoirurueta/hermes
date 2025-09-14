@@ -33,6 +33,7 @@ public abstract class AbstractCollectionItemChangeDetector<T> {
      * @param newItems new items.
      * @param oldItems old items.
      * @return a list of found changes.
+     * @throws IllegalArgumentException if any of the provided lists is null.
      */
     public Collection<CollectionItemChange> detectChanges(final Collection<T> newItems, final Collection<T> oldItems) {
         if (oldItems == null || newItems == null) {

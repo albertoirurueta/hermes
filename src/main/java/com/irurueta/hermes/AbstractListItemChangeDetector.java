@@ -34,6 +34,7 @@ public abstract class AbstractListItemChangeDetector<T> {
      * @param newItems new items.
      * @param oldItems old items.
      * @return a list of found changes.
+     * @throws IllegalArgumentException if any of the provided lists is null.
      */
     public List<ListItemChange> detectChanges(final List<T> newItems, final List<T> oldItems) {
         if (oldItems == null || newItems == null) {
