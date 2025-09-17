@@ -5,7 +5,7 @@
 
   <groupId>com.irurueta</groupId>
   <artifactId>hermes</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
   <packaging>jar</packaging>
 
   <name>${project.groupId}:${project.artifactId}</name>
@@ -31,21 +31,6 @@
     <developerConnection>scm:git@github.com:albertoirurueta/hermes.git</developerConnection>
     <url>git@github.com:albertoirurueta/hermes.git</url>
   </scm>
-
-  <distributionManagement>
-    <!-- maven central snapshot repository -->
-    <snapshotRepository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-  </distributionManagement>
-
-  <repositories>
-    <repository>
-      <id>maven-central-snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </repository>
-  </repositories>
 
   <dependencies>
     <dependency>
@@ -274,17 +259,13 @@
       </plugin>
       <!-- deploys artifact to snapshots repository -->
       <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.13</version>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>0.8.0</version>
         <extensions>true</extensions>
         <configuration>
-          <serverId>ossrh</serverId>
-          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-          <autoReleaseAfterClose>true</autoReleaseAfterClose>
-          <keepStagingRepositoryOnFailure>true</keepStagingRepositoryOnFailure>
-          <stagingProgressTimeoutMinutes>30</stagingProgressTimeoutMinutes>
-          <stagingProfileId>${env.SONATYPE_STAGING_PROFILE_ID}</stagingProfileId>
+          <publishingServerId>central</publishingServerId>
+          <autoPublish>true</autoPublish>
         </configuration>
       </plugin>
     </plugins>

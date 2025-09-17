@@ -19,7 +19,7 @@ jobs:
       with:
         distribution: adopt
         java-version: 17
-        server-id: ossrh # Value of the distributionManagement/repository/id field of the pom.xml
+        server-id: central # Value of the distributionManagement/repository/id field of the pom.xml
         server-username: OSSRH_USERNAME # env variable for username in deploy
         server-password: OSSRH_PASSWORD # env variable for token in deploy
         gpg-private-key: ${{ secrets.SIGNING_KEY }} # Value of the GPG private key to import
@@ -27,7 +27,7 @@ jobs:
 
     - name: Run tests
       run: |
-        mvn clean jacoco:prepare-agent install jacoco:report -P '!build-extras'
+        mvn clean jacoco:prepare-agent install jacoco:report javadoc:jar source:jar -P '!build-extras'
         mvn site -Djacoco.skip -DskipTests -P '!build-extras'
 
     - name: Setup sonarqube
