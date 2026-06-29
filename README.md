@@ -170,6 +170,8 @@ To be able to perform local search, we need to install lunr extension using npm
 
 ```
 npm i @antora/lunr-extension
+npm i -D @sntke/antora-mermaid-extension
+npm i @djencks/asciidoctor-mathjax
 ```
 
 And then register the extension in the playbook

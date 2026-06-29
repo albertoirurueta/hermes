@@ -1,5 +1,5 @@
-name: project-name
+name: hermes
 version: ~
-title: Project Name
+title: Hermes
 nav:
   - modules/ROOT/nav.adoc

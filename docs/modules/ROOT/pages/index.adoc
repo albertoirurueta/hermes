@@ -1,3 +1,46 @@
-= Welcome!
+= Hermes
 
-You are home.
+Hermes is a small Java library for detecting differences between two versions of a collection.
+It reports which items were inserted, removed, updated, and, for lists, moved to a different position.
+
+The library is useful when an application receives a refreshed set of data and needs to turn that difference into explicit operations.
+Common examples include synchronizing UI lists, producing audit events, updating cached data, applying remote changes, or sending compact change notifications instead of replacing an entire collection.
+
+== What Hermes Compares
+
+Hermes intentionally separates two ideas that are often mixed together:
+
+Item identity:: Whether two objects represent the same logical item, such as two records with the same id.
+Item content:: Whether the data inside that logical item has changed.
+
+This means an item can be recognized as the same item even when its content is different.
+For example, `Item(2, "draft")` and `Item(2, "published")` can match by id while still producing an `UPDATED` change.
+
+== Supported Change Types
+
+For general collections, Hermes detects:
+
+* `INSERTED`
+* `REMOVED`
+* `UPDATED`
+
+For lists, Hermes also detects:
+
+* `MOVED`
+
+List detectors include positions in the returned change objects.
+Hermes provides both absolute-position list detection and sequential-position list detection, so you can choose whether positions refer to the original/new lists or to a sequence of edits applied one after another.
+
+== Main APIs
+
+Use these classes from `com.irurueta.hermes`:
+
+* `CollectionItemChangeDetector`
+* `ComparableCollectionItemChangeDetector`
+* `ListItemChangeDetector`
+* `ComparableListItemChangeDetector`
+* `SequentialListItemChangeDetector`
+* `ComparableSequentialListItemChangeDetector`
+
+Start with xref:getting-started.adoc[] if you want a dependency snippet and first example.
+Use xref:detectors.adoc[] to choose the detector that fits your collection type.
