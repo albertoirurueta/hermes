@@ -23,7 +23,7 @@ and accurately.
 [![Technical debt](https://sonarcloud.io/api/project_badges/measure?project=albertoirurueta_hermes&metric=sqale_index)](https://sonarcloud.io/dashboard?id=albertoirurueta_hermes)
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=albertoirurueta_hermes&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=albertoirurueta_hermes)
 
-[Maven Site Report](http://albertoirurueta.github.io/hermes)
+[Maven Site Report](http://albertoirurueta.github.io/hermes/mvn-site)
 
 ## Usage
 
