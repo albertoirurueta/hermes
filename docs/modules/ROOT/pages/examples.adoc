@@ -1,0 +1,135 @@
+= Examples
+
+These examples show the most common ways to use Hermes.
+
+== Detect Updates in a Collection
+
+Use `CollectionItemChangeDetector` when order does not matter.
+This detector reports inserted, removed, and updated items, but it does not report moves.
+
+[source,java]
+----
+import com.irurueta.hermes.CollectionItemChangeAction;
+import com.irurueta.hermes.CollectionItemChangeDetector;
+import com.irurueta.hermes.UpdatedCollectionItemChange;
+
+import java.util.List;
+
+record User(long id, String displayName, boolean active) { }
+
+var oldUsers = List.of(
+        new User(1, "Ada", true),
+        new User(2, "Grace", true));
+
+var newUsers = List.of(
+        new User(1, "Ada Lovelace", true),
+        new User(2, "Grace", true));
+
+var detector = new CollectionItemChangeDetector<User>(
+        (left, right) -> left.id() == right.id(),
+        (left, right) -> left.displayName().equals(right.displayName())
+                && left.active() == right.active());
+
+var changes = detector.detectChanges(newUsers, oldUsers);
+
+for (var change : changes) {
+    if (change.getAction() == CollectionItemChangeAction.UPDATED) {
+        var updated = (UpdatedCollectionItemChange<User>) change;
+        System.out.println(updated.getOldItem() + " -> " + updated.getNewItem());
+    }
+}
+----
+
+== Replay Sequential List Changes
+
+Sequential detectors are a good fit when you want to apply the returned operations to an existing ordered list.
+
+[source,java]
+----
+import com.irurueta.hermes.InsertedListItemChange;
+import com.irurueta.hermes.ListItemChange;
+import com.irurueta.hermes.MovedListItemChange;
+import com.irurueta.hermes.RemovedListItemChange;
+import com.irurueta.hermes.SequentialListItemChangeDetector;
+import com.irurueta.hermes.UpdatedListItemChange;
+
+import java.util.ArrayList;
+import java.util.List;
+
+record Row(String id, String label) { }
+
+var oldRows = List.of(
+        new Row("a", "Alpha"),
+        new Row("b", "Beta"),
+        new Row("c", "Gamma"));
+
+var newRows = List.of(
+        new Row("c", "Gamma"),
+        new Row("b", "Beta v2"),
+        new Row("d", "Delta"));
+
+var detector = new SequentialListItemChangeDetector<Row>(
+        (left, right) -> left.id().equals(right.id()),
+        (left, right) -> left.label().equals(right.label()));
+
+var changes = detector.detectChanges(newRows, oldRows);
+var working = new ArrayList<>(oldRows);
+
+for (ListItemChange change : changes) {
+    switch (change.getAction()) {
+        case REMOVED -> {
+            var removed = (RemovedListItemChange<Row>) change;
+            working.remove(removed.getOldPosition());
+        }
+        case INSERTED -> {
+            var inserted = (InsertedListItemChange<Row>) change;
+            working.add(inserted.getNewPosition(), inserted.getNewItem());
+        }
+        case MOVED -> {
+            var moved = (MovedListItemChange<Row>) change;
+            var row = working.remove(moved.getOldPosition());
+            working.add(moved.getNewPosition(), row);
+        }
+        case UPDATED -> {
+            var updated = (UpdatedListItemChange<Row>) change;
+            working.set(updated.getPosition(), updated.getNewItem());
+        }
+    }
+}
+----
+
+== Use Comparable Items
+
+When items implement `ComparableItem`, Hermes can use the item methods directly.
+
+[source,java]
+----
+import com.irurueta.hermes.ComparableItem;
+import com.irurueta.hermes.ComparableCollectionItemChangeDetector;
+
+record Account(String number, String owner, String status)
+        implements ComparableItem<Account> {
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Account account
+                && number.equals(account.number);
+    }
+
+    @Override
+    public int hashCode() {
+        return number.hashCode();
+    }
+
+    @Override
+    public boolean equalContent(Account other) {
+        return owner.equals(other.owner) && status.equals(other.status);
+    }
+}
+
+var detector = new ComparableCollectionItemChangeDetector<Account>();
+var changes = detector.detectChanges(newAccounts, oldAccounts);
+----
+
+The important rule is that `equals(Object)` identifies the same logical item.
+It should not compare every field if those fields are supposed to produce `UPDATED` changes.

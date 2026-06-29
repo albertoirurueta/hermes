@@ -1,0 +1,167 @@
+= Choosing a Detector
+
+Hermes offers detector classes for three decisions:
+
+* Whether the input is position-aware.
+* Whether items implement `ComparableItem`.
+* Whether list positions should be absolute or sequential.
+
+== Decision Tree
+
+[mermaid]
+----
+flowchart TD
+    start["What are you comparing?"]
+    collection["Position-independent collection"]
+    list["List or ordered data"]
+    customCollection["Use custom comparators?"]
+    customList["Use custom comparators?"]
+    positionMode["How should positions be interpreted?"]
+    collectionDetector["CollectionItemChangeDetector"]
+    comparableCollectionDetector["ComparableCollectionItemChangeDetector"]
+    listDetector["ListItemChangeDetector"]
+    comparableListDetector["ComparableListItemChangeDetector"]
+    sequentialListDetector["SequentialListItemChangeDetector"]
+    comparableSequentialListDetector["ComparableSequentialListItemChangeDetector"]
+
+    start --> collection
+    start --> list
+    collection --> customCollection
+    customCollection -->|"yes"| collectionDetector
+    customCollection -->|"no, item implements ComparableItem"| comparableCollectionDetector
+    list --> customList
+    customList -->|"yes"| positionMode
+    customList -->|"no, item implements ComparableItem"| positionMode
+    positionMode -->|"absolute snapshot positions and custom comparators"| listDetector
+    positionMode -->|"absolute snapshot positions and ComparableItem"| comparableListDetector
+    positionMode -->|"sequential edit positions and custom comparators"| sequentialListDetector
+    positionMode -->|"sequential edit positions and ComparableItem"| comparableSequentialListDetector
+----
+
+== Detector Matrix
+
+[cols="1,1,1,2",options="header"]
+|===
+|Collection shape
+|Item comparison style
+|Position style
+|Use
+
+|Collection, set, map values, or any position-independent data
+|Custom comparators
+|Not applicable
+|`CollectionItemChangeDetector`
+
+|Collection, set, map values, or any position-independent data
+|Items implement `ComparableItem`
+|Not applicable
+|`ComparableCollectionItemChangeDetector`
+
+|List or other ordered data
+|Custom comparators
+|Absolute positions
+|`ListItemChangeDetector`
+
+|List or other ordered data
+|Items implement `ComparableItem`
+|Absolute positions
+|`ComparableListItemChangeDetector`
+
+|List or other ordered data
+|Custom comparators
+|Sequential edit positions
+|`SequentialListItemChangeDetector`
+
+|List or other ordered data
+|Items implement `ComparableItem`
+|Sequential edit positions
+|`ComparableSequentialListItemChangeDetector`
+|===
+
+== Custom Comparators
+
+Use comparator-based detectors when your item type cannot or should not implement Hermes interfaces.
+The identity comparator answers "is this the same logical item?"
+The content comparator answers "does this same logical item have the same content?"
+
+[source,java]
+----
+var detector = new CollectionItemChangeDetector<Product>(
+        (left, right) -> left.id().equals(right.id()),
+        (left, right) -> left.name().equals(right.name())
+                && left.price().compareTo(right.price()) == 0);
+----
+
+== ComparableItem
+
+Use comparable detectors when the item type can carry its own comparison rules.
+`equals(Object)` must represent identity, not full content equality.
+`equalContent(T other)` represents content equality.
+
+[source,java]
+----
+import com.irurueta.hermes.ComparableItem;
+
+record Product(String id, String name, int quantity)
+        implements ComparableItem<Product> {
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Product product && id.equals(product.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
+    @Override
+    public boolean equalContent(Product other) {
+        return name.equals(other.name) && quantity == other.quantity;
+    }
+}
+----
+
+After that, detector construction is simpler:
+
+[source,java]
+----
+var detector = new ComparableListItemChangeDetector<Product>();
+var changes = detector.detectChanges(newProducts, oldProducts);
+----
+
+== Absolute vs Sequential List Positions
+
+`ListItemChangeDetector` and `ComparableListItemChangeDetector` report positions with respect to the old and new lists.
+This is useful when you want to describe what changed between two snapshots.
+
+`SequentialListItemChangeDetector` and `ComparableSequentialListItemChangeDetector` report positions as if changes are applied in returned order to the old list.
+This is useful when you want to replay the changes against an existing list.
+
+For a simple swap from `[A, B]` to `[B, A]`, the absolute detector reports both items as moved.
+The sequential detector can report a single move that transforms the old list into the new list.
+
+[mermaid]
+----
+flowchart LR
+    old["Old list: A, B"] --> absolute["Absolute detector"]
+    new["New list: B, A"] --> absolute
+    absolute --> absA["A moved 0 to 1"]
+    absolute --> absB["B moved 1 to 0"]
+
+    old --> sequential["Sequential detector"]
+    new --> sequential
+    sequential --> seqMove["Move A from 0 to 1"]
+    seqMove --> result["Working list becomes B, A"]
+----
+
+== Change Ordering
+
+Detectors build changes in this order:
+
+* removals
+* insertions
+* moves, for list detectors
+* updates
+
+Sequential list detectors update their internal working copy after removals, insertions, and moves so later positions refer to the list state after earlier returned changes.

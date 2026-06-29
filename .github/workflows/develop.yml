@@ -51,6 +51,8 @@ jobs:
         mkdir docs && cd docs
         npm i -D -E antora
         npm i @antora/lunr-extension
+        npm i @sntke/antora-mermaid-extension
+        npm i @djencks/asciidoctor-mathjax
 
     - name: Build Antora docs
       run: cd docs && npx antora antora-playbook.yml

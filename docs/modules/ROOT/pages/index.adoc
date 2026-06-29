@@ -6,6 +6,26 @@ It reports which items were inserted, removed, updated, and, for lists, moved to
 The library is useful when an application receives a refreshed set of data and needs to turn that difference into explicit operations.
 Common examples include synchronizing UI lists, producing audit events, updating cached data, applying remote changes, or sending compact change notifications instead of replacing an entire collection.
 
+== How It Works
+
+[mermaid]
+----
+flowchart LR
+    oldItems["Old items"] --> detector["Hermes detector"]
+    newItems["New items"] --> detector
+    detector --> identity["Match by item identity"]
+    identity --> content["Compare matched item content"]
+    content --> changes["Change objects"]
+    changes --> inserted["INSERTED"]
+    changes --> removed["REMOVED"]
+    changes --> updated["UPDATED"]
+    changes --> moved["MOVED for lists"]
+----
+
+Hermes compares two snapshots.
+First it decides which objects represent the same logical item.
+Then it compares content for matched items and returns explicit change objects.
+
 == What Hermes Compares
 
 Hermes intentionally separates two ideas that are often mixed together:
