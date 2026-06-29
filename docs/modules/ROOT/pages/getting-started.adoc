@@ -1,0 +1,108 @@
+= Getting Started
+
+Hermes is published as the Maven artifact `com.irurueta:hermes`.
+The project targets Java 17.
+
+== Add the Dependency
+
+Latest release:
+
+[source,xml]
+----
+<dependency>
+    <groupId>com.irurueta</groupId>
+    <artifactId>hermes</artifactId>
+    <version>1.3.0</version>
+    <scope>compile</scope>
+</dependency>
+----
+
+Latest snapshot from this repository:
+
+[source,xml]
+----
+<dependency>
+    <groupId>com.irurueta</groupId>
+    <artifactId>hermes</artifactId>
+    <version>1.4.0-SNAPSHOT</version>
+    <scope>compile</scope>
+</dependency>
+----
+
+== Basic List Example
+
+Use `ListItemChangeDetector` when your items do not implement Hermes' `ComparableItem` interface and you want to provide matching logic with lambdas or comparator classes.
+
+[source,java]
+----
+import com.irurueta.hermes.InsertedListItemChange;
+import com.irurueta.hermes.ListItemChangeAction;
+import com.irurueta.hermes.ListItemChangeDetector;
+import com.irurueta.hermes.MovedListItemChange;
+import com.irurueta.hermes.RemovedListItemChange;
+import com.irurueta.hermes.UpdatedListItemChange;
+
+import java.util.List;
+import java.util.Objects;
+
+record Item(int id, String content) { }
+
+var detector = new ListItemChangeDetector<Item>(
+        (item1, item2) -> item1.id() == item2.id(),
+        (item1, item2) -> Objects.equals(item1.content(), item2.content()));
+
+var oldList = List.of(
+        new Item(1, "item1"),
+        new Item(2, "item2"),
+        new Item(3, "item3"),
+        new Item(4, "item4"));
+
+var newList = List.of(
+        new Item(3, "item3"),
+        new Item(2, "item2b"),
+        new Item(1, "item1"),
+        new Item(5, "item5"));
+
+var changes = detector.detectChanges(newList, oldList);
+
+for (var change : changes) {
+    if (change.getAction() == ListItemChangeAction.REMOVED) {
+        var removed = (RemovedListItemChange<Item>) change;
+        System.out.println("Removed " + removed.getOldItem()
+                + " from " + removed.getOldPosition());
+    } else if (change.getAction() == ListItemChangeAction.INSERTED) {
+        var inserted = (InsertedListItemChange<Item>) change;
+        System.out.println("Inserted " + inserted.getNewItem()
+                + " at " + inserted.getNewPosition());
+    } else if (change.getAction() == ListItemChangeAction.MOVED) {
+        var moved = (MovedListItemChange<Item>) change;
+        System.out.println("Moved " + moved.getOldItem()
+                + " from " + moved.getOldPosition()
+                + " to " + moved.getNewPosition());
+    } else if (change.getAction() == ListItemChangeAction.UPDATED) {
+        var updated = (UpdatedListItemChange<Item>) change;
+        System.out.println("Updated " + updated.getOldItem()
+                + " to " + updated.getNewItem()
+                + " at " + updated.getPosition());
+    }
+}
+----
+
+The detector matches items by `id`.
+It compares content with `Objects.equals`.
+In this example Hermes reports item 4 as removed, item 5 as inserted, item 1 and item 3 as moved, and item 2 as updated.
+
+== Method Contract
+
+All detectors use the same call shape:
+
+[source,java]
+----
+var changes = detector.detectChanges(newItems, oldItems);
+----
+
+Both arguments are required.
+Passing `null` for either collection throws `IllegalArgumentException`.
+
+The detector returns change objects.
+Each change has an action enum, and specialized subclasses expose the old item, new item, and any relevant positions.

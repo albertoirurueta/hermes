@@ -1,0 +1,128 @@
+= Change Results
+
+Hermes returns a collection of change objects.
+The base object exposes the action enum, and each concrete subtype exposes the item values and positions that are meaningful for that action.
+
+== Result Model
+
+[mermaid]
+----
+classDiagram
+    class CollectionItemChange {
+        +getAction()
+    }
+    class InsertedCollectionItemChange {
+        +getNewItem()
+    }
+    class RemovedCollectionItemChange {
+        +getOldItem()
+    }
+    class UpdatedCollectionItemChange {
+        +getOldItem()
+        +getNewItem()
+    }
+    class ListItemChange {
+        +getAction()
+    }
+    class InsertedListItemChange {
+        +getNewItem()
+        +getNewPosition()
+    }
+    class RemovedListItemChange {
+        +getOldItem()
+        +getOldPosition()
+    }
+    class UpdatedListItemChange {
+        +getOldItem()
+        +getNewItem()
+        +getPosition()
+    }
+    class MovedListItemChange {
+        +getOldItem()
+        +getNewItem()
+        +getOldPosition()
+        +getNewPosition()
+    }
+
+    CollectionItemChange <|-- InsertedCollectionItemChange
+    CollectionItemChange <|-- RemovedCollectionItemChange
+    CollectionItemChange <|-- UpdatedCollectionItemChange
+    ListItemChange <|-- InsertedListItemChange
+    ListItemChange <|-- RemovedListItemChange
+    ListItemChange <|-- UpdatedListItemChange
+    ListItemChange <|-- MovedListItemChange
+----
+
+== Collection Changes
+
+Collection detectors return `CollectionItemChange` instances.
+The action enum is `CollectionItemChangeAction`.
+
+[cols="1,1,2",options="header"]
+|===
+|Action
+|Concrete type
+|Data available
+
+|`INSERTED`
+|`InsertedCollectionItemChange<T>`
+|`getNewItem()`
+
+|`REMOVED`
+|`RemovedCollectionItemChange<T>`
+|`getOldItem()`
+
+|`UPDATED`
+|`UpdatedCollectionItemChange<T>`
+|`getOldItem()`, `getNewItem()`
+|===
+
+Collection detectors are position-independent.
+They do not report move operations.
+
+== List Changes
+
+List detectors return `ListItemChange` instances.
+The action enum is `ListItemChangeAction`.
+
+[cols="1,1,2",options="header"]
+|===
+|Action
+|Concrete type
+|Data available
+
+|`INSERTED`
+|`InsertedListItemChange<T>`
+|`getNewItem()`, `getNewPosition()`
+
+|`REMOVED`
+|`RemovedListItemChange<T>`
+|`getOldItem()`, `getOldPosition()`
+
+|`UPDATED`
+|`UpdatedListItemChange<T>`
+|`getOldItem()`, `getNewItem()`, `getPosition()`
+
+|`MOVED`
+|`MovedListItemChange<T>`
+|`getOldItem()`, `getNewItem()`, `getOldPosition()`, `getNewPosition()`
+|===
+
+== Interpreting List Positions
+
+For `ListItemChangeDetector` and `ComparableListItemChangeDetector`, positions refer to the old or new snapshots:
+
+* removed changes use the item's position in the old list
+* inserted changes use the item's position in the new list
+* moved changes use the old and new list positions
+* updated changes use the item's position in the new list
+
+For `SequentialListItemChangeDetector` and `ComparableSequentialListItemChangeDetector`, positions are intended to be applied in returned order.
+After you process one returned change, the next returned change's position refers to the updated working list.
+
+== Null Handling
+
+Detector constructors that accept comparator arguments require non-null comparators.
+Change objects require non-null item values.
+`detectChanges(newItems, oldItems)` requires both arguments to be non-null.
+These invalid inputs throw `IllegalArgumentException`.
