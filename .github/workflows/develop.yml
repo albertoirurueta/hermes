@@ -57,6 +57,7 @@ jobs:
 
     - name: Merge documentation
       run: |
+        touch ./docs/Build/site/.nojekyll
         cp -r ./docs/build/site ./doc
         cp -r ./target/site ./doc/mvn-site
 
