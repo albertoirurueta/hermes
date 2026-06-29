@@ -1,7 +1,6 @@
 = Reference
 
 These reports are generated during the Maven build and site lifecycle.
-When `target/site` is published into the documentation site as `mvn-site`, they are available from the documentation output.
 
 == Generated Reports
 
