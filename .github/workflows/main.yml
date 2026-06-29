@@ -42,12 +42,34 @@ jobs:
       run: sonar-scanner
         -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
+    - name: Install Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+
+    - name: Install Antora
+      run: |
+        mkdir docs && cd docs
+        npm i -D -E antora
+        npm i @antora/lunr-extension
+        npm i @sntke/antora-mermaid-extension
+        npm i @djencks/asciidoctor-mathjax
+
+    - name: Build Antora docs
+      run: cd docs && npx antora antora-playbook.yml
+
+    - name: Merge documentation
+      run: |
+        touch ./docs/build/site/.nojekyll
+        cp -r ./docs/build/site ./doc
+        cp -r ./target/site ./doc/mvn-site
+
     - name: Deploy to GitHub Pages
       if: success()
       uses: crazy-max/ghaction-github-pages@v5
       with:
         target_branch: gh-pages
-        build_dir: ./target/site
+        build_dir: ./doc
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
