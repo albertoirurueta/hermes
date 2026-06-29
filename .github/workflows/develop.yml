@@ -51,7 +51,7 @@ jobs:
         npm i @antora/lunr-extension
 
     - name: Build Antora docs
-      run: npx antora antora-playbook.yml
+      run: cd docs && npx antora antora-playbook.yml
 
     - name: Deploy to GitHub Pages
       if: success()
