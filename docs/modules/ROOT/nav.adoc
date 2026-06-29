@@ -3,3 +3,4 @@
 * xref:detectors.adoc[]
 * xref:examples.adoc[]
 * xref:change-results.adoc[]
+* xref:reference.adoc[]
