@@ -31,7 +31,7 @@ jobs:
         mvn site -Djacoco.skip -DskipTests -P '!build-extras'
 
     - name: Setup sonarqube
-      uses: warchant/setup-sonar-scanner@v7
+      uses: warchant/setup-sonar-scanner@v8
 
     - name: Send to sonarqube
       env:
@@ -41,13 +41,11 @@ jobs:
       run: sonar-scanner
         -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-    - name: Install node
-      run: |
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
-        nvm install 24
-
     - name: Install Antora
-      run: |
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - run: |
         mkdir docs && cd docs
         npm i -D -E antora
         npm i @antora/lunr-extension
