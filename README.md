@@ -124,3 +124,58 @@ The execution of the previous code will return a list of changes with the follow
   * ChangeType: UPDATED
   * Position: 1
   * Explanation: Item 2 was updated.
+
+
+## Documentation
+Instructions to setup Antora:
+
+1. Install node: https://nodejs.org/en/download
+```
+# Download and install nvm:
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+
+# in lieu of restarting the shell
+\. "$HOME/.nvm/nvm.sh"
+
+# Download and install Node.js:
+nvm install 24
+
+# Verify the Node.js version:
+node -v # Should print "v24.16.0".
+
+# Verify npm version:
+npm -v # Should print "11.13.0".
+
+```
+
+2. Install Antora: https://docs.antora.org/antora/latest/install-and-run-quickstart/
+
+```
+mkdir docs && cd docs
+
+node -e "fs.writeFileSync('package.json', '{}')" && npm i -D -E antora
+```
+
+3. Create playbook with local source. It's important to set source to the root of this repository, and set proper
+   `start_path` within the repository
+4. Create antora.yml
+
+5. Documentation can be generated locally using antora:
+```
+cd docs
+npx antora antora-playbook.yml
+```
+
+To be able to perform local search, we need to install lunr extension using npm
+
+```
+npm i @antora/lunr-extension
+```
+
+And then register the extension in the playbook
+```
+antora:
+  extensions:
+    - require: '@antora/lunr-extension'
+
+```
