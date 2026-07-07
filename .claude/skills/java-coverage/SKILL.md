@@ -81,8 +81,8 @@ class meets it.
 
 For classes under the bar, point to the per-class HTML report for line-level detail on exactly what's uncovered:
 `target/site/jacoco/<package-with-dots>/<ClassName>.html` (e.g.
-`target/site/jacoco/com.irurueta.hermes/ListItemChangeDetector.html`). Read its companion `.java.html` file
-(same name, e.g. `ListItemChangeDetector.java.html`) for the actual highlighted source: each line is a
+`target/site/jacoco/com.example.myapp/Foo.html`). Read its companion `.java.html` file
+(same name, e.g. `Foo.java.html`) for the actual highlighted source: each line is a
 `<span class="nc" id="L<n>">` (not covered), `<span class="pc" id="L<n>">` (partially covered branch), or
 `<span class="fc" id="L<n>">` (fully covered) — `grep -o 'class="nc" id="L[0-9]*"' <file>` gives the exact
 uncovered line numbers when the user wants to know precisely which lines/branches to target with new tests,

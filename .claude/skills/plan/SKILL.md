@@ -49,9 +49,8 @@ on, or scope that could reasonably mean two very different things).
   obvious best-practice answer.
 - If nothing is genuinely ambiguous: do **not** ask the user anything. Proceed straight to drafting the plan,
   choosing the best-practice approach yourself given the language, frameworks, libraries, and existing
-  architectural conventions found in Step 2 (for this repository: Java 17, no runtime dependencies, the
-  `Abstract*Detector` template pattern, Checkstyle/SpotBugs/PMD-enforced conventions such as full Javadoc on
-  public/protected members — see `CLAUDE.md`). State the approach you chose and why in the plan itself so the
+  architectural conventions found in Step 2 (check the repository's own `CLAUDE.md` or equivalent contributor
+  docs, if present, for conventions to follow). State the approach you chose and why in the plan itself so the
   user can see and challenge the reasoning during review, rather than being asked upfront.
 
 ## Step 4 — Draft `implementation_plan.md`
@@ -65,22 +64,21 @@ work the user cares about, check with the user before overwriting it). Structure
    one-line rationale.
 2. **Current code state** — a brief summary of the relevant existing architecture/classes/files as found during
    exploration: what exists today, how it is structured, and where the change needs to land. Reference concrete
-   file paths and class/method names (e.g. `src/main/java/com/irurueta/hermes/AbstractListItemChangeDetector.java`),
-   not vague descriptions.
+   file paths and class/method names from the actual repository, not vague descriptions.
 3. **Implementation steps** — a numbered list of tasks, each broken into sub-tasks as needed. Every task and
    sub-task must be explicit and actionable, not aspirational:
    - Name the exact file(s) to create or modify.
-   - Describe the exact change (new class/method/field, signature, behavior, which hook/interface it
-     implements, what test to add, what Javadoc is required, etc.).
+   - Describe the exact change (new class/function/field, signature, behavior, which hook/interface it
+     implements, what test to add, what documentation is required, etc.).
    - Where it clarifies the intent, include a short illustrative code example (a signature, a snippet, a test
      case sketch) — enough to remove guesswork, not a full implementation.
    - Order tasks so each one is buildable/testable on top of the previous (e.g. add the abstraction before the
-     concrete class that uses it; add the detector before the tests that exercise it).
+     concrete implementation that uses it; add the implementation before the tests that exercise it).
    - Call out verification steps explicitly where this repository's conventions require them (e.g. "update
-     Javadoc", "run the Checkstyle/SpotBugs profile"). For running the tests touched by a task, call out
-     invoking the `java-test` skill (`Skill({skill: "java-test", args: "<selector>"})`) scoped to the relevant
-     test class(es)/method(s) if that skill is available in this repository; otherwise call out the equivalent
-     `mvn test -Dtest=...` command directly.
+     the docs", "run the linter/static-analysis profile"). For running the tests touched by a task, call out
+     invoking a repository-specific test-running skill (e.g. `Skill({skill: "<test-skill>", args: "<selector>"})`)
+     scoped to the relevant test(s) if such a skill is available in this repository; otherwise call out the
+     equivalent test-runner command for this repository's language/build tool directly.
    - Give every task and every sub-task an empty markdown checkbox placeholder, e.g. `1. [ ] **Some task**` for a 
      top-level task and `- [ ] Some subtask` for a sub-task nested under it. The `code` skill checks these off as it 
      completes each one, so every task/sub-task line needs its own `[ ]` — don't share one checkbox across several 
