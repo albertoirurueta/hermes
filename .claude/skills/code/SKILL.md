@@ -1,7 +1,7 @@
 ---
 name: code
-description: Execute the tasks in implementation_plan.md at the repository root, one at a time — implement each task per the plan, add or update JUnit tests achieving at least 80% coverage for the changed code, run the full test suite, and check off the task's checkbox directly in implementation_plan.md before moving to the next. Runs autonomously — user intervention is limited to unresolved errors, decisions only the user can make, or permissions the allowed-tools list doesn't cover. Warns the user up front if implementation_plan.md already exists at the repository root (expected only when resuming an interrupted prior run). On successful completion, archives the plan to .archive/ and asks for a final review of all code changes. Invoke as `/code` once implementation_plan.md exists (e.g. produced by the `plan` skill).
-allowed-tools: Read Edit Write Bash(mvn *) Bash(git status *) Bash(git diff *) Bash(git log *) Bash(find *) Bash(grep *) Bash(ls *) Bash(mkdir *) Bash(mv *) Bash(date *) TaskCreate TaskUpdate TaskList TaskGet Skill
+description: Execute the tasks in implementation_plan.md at the repository root, one at a time — implement each task per the plan, add or update JUnit tests achieving at least 80% coverage for the changed code, run the full test suite, verify the task introduced no new Checkstyle/PMD/SpotBugs issues, and check off the task's checkbox directly in implementation_plan.md before moving to the next. Runs autonomously — user intervention is limited to unresolved errors, decisions only the user can make, or permissions the allowed-tools list doesn't cover. Warns the user up front if implementation_plan.md already exists at the repository root (expected only when resuming an interrupted prior run). On successful completion, archives the plan to .archive/, asks the user whether to open follow-up tasks or GitHub issues if overall code quality isn't excellent, and asks for a final review of all code changes. Invoke as `/code` once implementation_plan.md exists (e.g. produced by the `plan` skill).
+allowed-tools: Read Edit Write Bash(mvn *) Bash(git status *) Bash(git diff *) Bash(git log *) Bash(find *) Bash(grep *) Bash(ls *) Bash(mkdir *) Bash(mv *) Bash(date *) Bash(gh issue create *) TaskCreate TaskUpdate TaskList TaskGet Skill
 ---
 
 # Implementation
@@ -45,12 +45,17 @@ completion by checking those boxes — do not introduce a separate status tag or
 - Treat any task or sub-task whose checkbox is already `[x]` (from a prior run of this skill) as already done —
   this makes the skill resumable across interrupted runs.
 
-## Step 3 — Track progress with TaskCreate/TaskUpdate
+## Step 3 — Track progress, and capture a project-wide quality baseline
 
 Mirror the plan's top-level tasks into the session's task list (`TaskCreate`), one per pending task, so the user
 can see live progress. Mark each `TaskUpdate`d as completed as you finish it, in step with the plan-file update
 in Step 5. This is in addition to, not a replacement for, updating `implementation_plan.md` — the plan file is
 the durable record; the task list is the live view.
+
+Before implementing anything, run `Skill({skill: "java-code-quality"})` once, unscoped, and record the total
+issue count per tool (Checkstyle/PMD/SpotBugs) plus the per-file list. This is the baseline the final check in
+Step 7 compares against to judge whether the plan's work left overall code quality at least as good as it found
+it. Skip this only if the `java-code-quality` skill is unavailable in this repository.
 
 ## Step 4 — Implement tasks one at a time, in plan order
 
@@ -59,7 +64,12 @@ top of the previous one). Skip any task whose checkbox is already checked (`[x]`
 
 1. **Re-check the current code state** for the files the task touches — the plan may have gone stale since it
    was written (other tasks just completed, or the file changed for unrelated reasons). Read the actual current
-   content before editing; don't assume the plan's "Current code state" section is still accurate.
+   content before editing; don't assume the plan's "Current code state" section is still accurate. Also run
+   `java-code-quality` scoped to the file(s) this task is about to touch
+   (`Skill({skill: "java-code-quality", args: "<ClassName>"})`, once per touched class), and record any issues
+   already present as this task's pre-change baseline — an empty baseline if the file is new. This is what the
+   quality check later in this task list compares against, so it flags only issues this task introduces, not
+   pre-existing ones.
 2. **Implement exactly what the task specifies**: the named file(s), the described class/method/field, the
    behavior, the hook/interface it implements. Follow this repository's conventions from `CLAUDE.md` (Java 17,
    `final var` for locals, full Javadoc with `@param`/`@return`/`@throws` on every public/protected member,
@@ -82,7 +92,14 @@ top of the previous one). Skip any task whose checkbox is already checked (`[x]`
    don't estimate it. If under 80%, add tests for the uncovered branches/lines and re-check.
 6. **Run the full suite** (`mvn clean test`) before marking the task done, to catch regressions in other classes
    this task's change may have affected.
-7. Only once 4–6 all pass: proceed to Step 5 for this task, then continue to the next unchecked task.
+7. **Check code quality for the touched file(s)** via `java-code-quality`, scoped the same way as item 1:
+   `Skill({skill: "java-code-quality", args: "<ClassName>"})`. Diff the reported issues against this task's
+   baseline from item 1. Any issue that wasn't in the baseline is a regression this task introduced — fix it
+   (then re-run 4–6 to confirm the fix didn't break tests or coverage) and re-check until none remain. Leave a
+   new issue in place only if fixing it is genuinely unavoidable (e.g. it would contradict what the task
+   explicitly specifies) — in that case say so, and why, in the Step 5 note rather than silently accepting it.
+   If the `java-code-quality` skill is unavailable in this repository, skip this item.
+8. Only once 4–7 all pass: proceed to Step 5 for this task, then continue to the next unchecked task.
 
 ## Step 5 — Check the task's boxes in `implementation_plan.md`
 
@@ -91,9 +108,10 @@ all times in case the run is interrupted):
 
 - Check that task's own checkbox (`[ ]` → `[x]`), and the checkbox of every sub-task under it that was part of
   the completed work.
-- Add a short note under the task (one or two lines) naming the files touched, the tests added/updated, and the
-  coverage achieved, e.g. `- [x] **Add `ComparableCollectionItemChangeDetector`** — tests in
-  ComparableCollectionItemChangeDetectorTest (94% line coverage).`
+- Add a short note under the task (one or two lines) naming the files touched, the tests added/updated, the
+  coverage achieved, and the code-quality result, e.g. `- [x] **Add `ComparableCollectionItemChangeDetector`** —
+  tests in ComparableCollectionItemChangeDetectorTest (94% line coverage, no new Checkstyle/PMD/SpotBugs
+  issues).` If a new issue was left in place as unavoidable (Step 4 item 7), name it and the reason here instead.
 - Save the file, then update the mirrored entry in the session task list (Step 3) to completed.
 
 ## Step 6 — When to interrupt the user
@@ -124,9 +142,29 @@ Once every checkbox is checked, run the full local verification from `CLAUDE.md`
 whole build — not just the incrementally-tested pieces — is healthy. If this fails, fix it (or, if it's a
 genuine blocker per Step 6, stop and surface it) — do not archive a plan behind a broken build.
 
+Then assess overall code quality against the baseline captured in Step 3:
+
+1. Run `Skill({skill: "java-code-quality"})` unscoped, project-wide, and compare its total issue counts
+   (Checkstyle/PMD/SpotBugs) and per-file list against the Step 3 baseline.
+2. If the total issue count did not increase and is zero (or was already zero at baseline and still is), overall
+   quality is excellent — proceed to Step 8.
+3. Otherwise — the plan's work leaves the project with more issues than it started with, or a nonzero count
+   persists — do not silently proceed. Use `AskUserQuestion` to tell the user what remains (counts and a short
+   summary per tool) and ask whether they want to:
+   - add follow-up task(s) to `implementation_plan.md` to fix the remaining issues before this run archives it
+     (if chosen, add the task(s) with empty checkboxes and return to Step 4 to implement them — do not archive
+     yet), or
+   - file the remaining issues as new GitHub issues instead (`gh issue create`, one issue per distinct problem
+     or logical group, with enough detail — file, line, tool, message — to act on later), or
+   - leave it as-is and proceed to archive without further action.
+   Respect whichever the user picks; only proceed to Step 8 once this choice has been acted on (issues filed, or
+   explicit acknowledgment to proceed as-is).
+4. If the `java-code-quality` skill is unavailable in this repository, skip this quality assessment and proceed
+   to Step 8 directly.
+
 ## Step 8 — Archive the plan and ask for review
 
-Only after Step 7 passes clean, with every task's checkbox checked:
+Only after Step 7 passes clean, with every task's checkbox checked, and the quality gate above resolved:
 
 1. Determine an identifier for the archived filename:
    - If the plan was grounded in a GitHub issue (check the "Task summary" section and the plan's origin for an
@@ -137,6 +175,7 @@ Only after Step 7 passes clean, with every task's checkbox checked:
    `.archive/implementation_plan_42.md` or `.archive/implementation_plan_20260707153000.md`). The repository
    root must no longer have an `implementation_plan.md` once this step completes successfully.
 3. Summarize for the user: which tasks were completed, the files touched overall, the coverage achieved per
-   task/class, and where the plan was archived to.
+   task/class, the final code-quality outcome (excellent / follow-up filed / issues left as-is per Step 7), and
+   where the plan was archived to.
 4. Explicitly ask the user to review the code changes (e.g. `git diff` / `git status`) before anything is
    committed. Do not commit, push, or open a PR — this skill's job ends at working, tested, reviewable code.
