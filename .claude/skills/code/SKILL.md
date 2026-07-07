@@ -1,7 +1,7 @@
 ---
 name: code
 description: Execute the tasks in implementation_plan.md at the repository root, one at a time — implement each task per the plan, add or update JUnit tests achieving at least 80% coverage for the changed code, run the full test suite, and check off the task's checkbox directly in implementation_plan.md before moving to the next. Runs autonomously — user intervention is limited to unresolved errors, decisions only the user can make, or permissions the allowed-tools list doesn't cover. Warns the user up front if implementation_plan.md already exists at the repository root (expected only when resuming an interrupted prior run). On successful completion, archives the plan to .archive/ and asks for a final review of all code changes. Invoke as `/code` once implementation_plan.md exists (e.g. produced by the `plan` skill).
-allowed-tools: Read Edit Write Bash(mvn *) Bash(git status *) Bash(git diff *) Bash(git log *) Bash(find *) Bash(grep *) Bash(ls *) Bash(mkdir *) Bash(mv *) Bash(date *) TaskCreate TaskUpdate TaskList TaskGet
+allowed-tools: Read Edit Write Bash(mvn *) Bash(git status *) Bash(git diff *) Bash(git log *) Bash(find *) Bash(grep *) Bash(ls *) Bash(mkdir *) Bash(mv *) Bash(date *) TaskCreate TaskUpdate TaskList TaskGet Skill
 ---
 
 # Implementation
@@ -68,13 +68,18 @@ top of the previous one). Skip any task whose checkbox is already checked (`[x]`
 3. **Write or update the tests** the task calls for, following the existing test style in the same package
    (JUnit 5, Mockito only where already used). Cover the new/changed behavior, including edge cases implied by
    the Javadoc `@throws` contracts (e.g. null/invalid-argument cases).
-4. **Run the scoped tests** for the affected class(es): `mvn test -Dtest=<TestClass>`. Fix and re-run until green
-   — don't move on with a red test.
-5. **Check coverage** for the changed/new classes is at least 80% line coverage:
-   `mvn clean jacoco:prepare-agent test jacoco:report -Dtest=<TestClass>` (or a broader run if the task spans
-   several classes), then read the generated `target/site/jacoco/**/index.html` or `jacoco.csv` for the specific
-   class(es) touched — check the actual reported percentage, don't estimate it. If under 80%, add tests for the
-   uncovered branches/lines and re-check.
+4. **Run the scoped tests** for the affected class(es) via the `java-test` skill, scoped to the touched test
+   class(es)/method(s): `Skill({skill: "java-test", args: "<TestClass>"})` (or a comma/wildcard selector per
+   that skill's Step 1 if several classes are affected). If the `java-test` skill is unavailable in this
+   repository, fall back to `mvn test -Dtest=<TestClass>` directly. Fix and re-run until green — don't move on
+   with a red test.
+5. **Check coverage** for the changed/new classes is at least 80% line coverage, via the `java-coverage` skill:
+   `Skill({skill: "java-coverage", args: "<TestClass>"})` (or a comma/wildcard selector per that skill's Step 1,
+   plus explicit target class names, if the task spans several classes). If the `java-coverage` skill is
+   unavailable in this repository, fall back to running
+   `mvn clean jacoco:prepare-agent test jacoco:report -Dtest=<TestClass>` directly and reading the generated
+   `target/site/jacoco/jacoco.csv` for the specific class(es) touched — check the actual reported percentage,
+   don't estimate it. If under 80%, add tests for the uncovered branches/lines and re-check.
 6. **Run the full suite** (`mvn clean test`) before marking the task done, to catch regressions in other classes
    this task's change may have affected.
 7. Only once 4–6 all pass: proceed to Step 5 for this task, then continue to the next unchecked task.

@@ -76,8 +76,11 @@ work the user cares about, check with the user before overwriting it). Structure
      case sketch) — enough to remove guesswork, not a full implementation.
    - Order tasks so each one is buildable/testable on top of the previous (e.g. add the abstraction before the
      concrete class that uses it; add the detector before the tests that exercise it).
-   - Call out verification steps explicitly (e.g. "run `mvn test -Dtest=...`", "update Javadoc", "run the
-     Checkstyle/SpotBugs profile") where this repository's conventions require them.
+   - Call out verification steps explicitly where this repository's conventions require them (e.g. "update
+     Javadoc", "run the Checkstyle/SpotBugs profile"). For running the tests touched by a task, call out
+     invoking the `java-test` skill (`Skill({skill: "java-test", args: "<selector>"})`) scoped to the relevant
+     test class(es)/method(s) if that skill is available in this repository; otherwise call out the equivalent
+     `mvn test -Dtest=...` command directly.
    - Give every task and every sub-task an empty markdown checkbox placeholder, e.g. `1. [ ] **Some task**` for a 
      top-level task and `- [ ] Some subtask` for a sub-task nested under it. The `code` skill checks these off as it 
      completes each one, so every task/sub-task line needs its own `[ ]` — don't share one checkbox across several 
