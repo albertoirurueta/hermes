@@ -1,6 +1,6 @@
 ---
 name: release
-description: Convert the current SNAPSHOT version into a final release. Must be run from the `develop` branch (gitflow) — warns and stops otherwise. Asks the user for the release version (current SNAPSHOT stripped, a patch bump, or a major bump) and the next upcoming SNAPSHOT version, creates a `release_x.y.z` branch off `develop`, updates the version in `pom.xml`, README.md, `docs/antora.yml`, and any Antora page showing dependency snippets, creates/updates `docs/modules/ROOT/pages/whats-new.adoc` with a summary of changes since the previous release, opens a pull request for the release branch, and uses the `pr-description` skill to fill in its description. Invoke as `/release`. Use whenever the user wants to cut a new release of this library.
+description: Convert the current SNAPSHOT version into a final release. Must be run from the `develop` branch (gitflow) — warns and stops otherwise. Asks the user for the release version (current SNAPSHOT stripped, a patch bump, or a major bump) and the next upcoming SNAPSHOT version, creates a `release_x.y.z` branch off `develop`, updates the version in `pom.xml`, README.md, `docs/antora.yml`, and any Antora page showing dependency snippets, creates/updates `docs/modules/ROOT/pages/whats-new.adoc` with a summary of changes since the previous release, opens a pull request for the release branch with a `release` label attached, and uses the `pr-description` skill to fill in its description. Invoke as `/release`. Use whenever the user wants to cut a new release of this library.
 ---
 
 # Release
@@ -136,10 +136,14 @@ branch, and the files changed. Only continue once they say to go ahead.
 ## Step 13 — Push and open the pull request
 
 - `git push -u origin release_<version>`.
+- Ensure a `release` label exists (`gh label list` — create it with `gh label create release --description
+  "Release pull request" --color <any hex>` if it's missing; this repo doesn't have one by default).
 - Open the PR against the `main`/`master` branch determined in Step 2 — never `develop` or any other branch —
   titled `Release <version>` to match this repo's history, with a minimal placeholder body (the real description
-  comes next): `gh pr create --base <main-or-master> --head release_<version> --title "Release <version>" --body
-  "Release <version>."`
+  comes next) and the `release` label attached: `gh pr create --base <main-or-master> --head release_<version>
+  --title "Release <version>" --body "Release <version>." --label release`. If `gh pr create` for some reason
+  doesn't accept `--label` (older `gh` versions), fall back to `gh pr edit <number> --add-label release`
+  immediately after creating it — the PR must not be left without the label.
 
 ## Step 14 — Fill in the PR description
 
