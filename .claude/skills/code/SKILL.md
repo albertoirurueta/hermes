@@ -86,14 +86,23 @@ top of the previous one). Skip any task whose checkbox is already checked (`[x]`
 3. **Write or update the tests** the task calls for, following the existing test style in the same package
    (JUnit 5, Mockito only where already used). Cover the new/changed behavior, including edge cases implied by
    the Javadoc `@throws` contracts (e.g. null/invalid-argument cases).
-4. **Update Javadoc** for the file(s) this task added or modified, by delegating to a sub-agent rather than
+4. **Add license headers** to the file(s) this task added or modified, by delegating to a sub-agent rather than
+   running `check-license` directly: `Agent({description: "Add license headers for <ClassName>", prompt: "Invoke
+   Skill({skill: \"check-license\", args: \"<file1,file2,...>\"}) scoped to the file(s) this task added or
+   modified. Report back only which files were missing a header vs. fixed vs. already compliant, and — if no
+   header convention existed anywhere in the repo — whether the user chose to skip or generate one, and what was
+   ultimately accepted. Not the full audit output."})`. Running this in a sub-agent's separate context keeps the
+   audit details out of the main context window since only the outcome matters here. If the sub-agent reports
+   the user chose to skip header generation, respect that choice for the rest of this run — don't ask again on
+   later tasks. If the `check-license` skill is unavailable in this repository, skip this item.
+5. **Update Javadoc** for the file(s) this task added or modified, by delegating to a sub-agent rather than
    running `java-javadoc` directly: `Agent({description: "Update Javadoc for <ClassName>", prompt: "Invoke
    Skill({skill: \"java-javadoc\", args: \"<ClassName1,ClassName2,...>\"}) scoped to the class(es) this task
    added or modified. Report back only whether Javadoc was added/updated and for which members, and whether the
    Javadoc build verification passed — not the full audit output."})`. Running this in a sub-agent's separate
    context keeps the audit details out of the main context window since only the outcome matters here. If the
    sub-agent reports the Javadoc build failed, fix the reported issues and re-invoke until it reports success.
-5. **Run the scoped tests** for the affected class(es) by delegating to a sub-agent rather than running
+6. **Run the scoped tests** for the affected class(es) by delegating to a sub-agent rather than running
    `java-test` directly: `Agent({description: "Run tests for <TestClass>", prompt: "Invoke Skill({skill:
    \"java-test\", args: \"<TestClass>\"}) (or a comma/wildcard selector per that skill's Step 1 if several
    classes are affected; fall back to `mvn test -Dtest=<TestClass>` directly if the java-test skill is
@@ -103,7 +112,7 @@ top of the previous one). Skip any task whose checkbox is already checked (`[x]`
    main context window. If the sub-agent reports failures, fix the implementation and/or tests based on the
    reported names/reasons/stack traces, then re-invoke the same sub-agent pattern — repeat until it reports all
    tests passed. Don't move on with a red test.
-6. **Check coverage** for the changed/new classes is at least 80% line coverage, by delegating to a sub-agent
+7. **Check coverage** for the changed/new classes is at least 80% line coverage, by delegating to a sub-agent
    rather than running `java-coverage` directly: `Agent({description: "Check coverage for <TestClass>", prompt:
    "Invoke Skill({skill: \"java-coverage\", args: \"<TestClass>\"}) (or a comma/wildcard selector per that
    skill's Step 1, plus explicit target class names, if several classes are involved; fall back to `mvn clean
@@ -113,28 +122,28 @@ top of the previous one). Skip any task whose checkbox is already checked (`[x]`
    specific lines/branches are covered or uncovered."})`. Running this in a sub-agent's separate context keeps
    the detailed per-line/per-branch report data out of the main context window since only the percentages are
    needed here. Check the actual reported percentage, don't estimate it. If under 80%, add tests for the
-   uncovered branches/lines (re-invoking the sub-agent from item 5, and this one without a sub-agent, to confirm)
+   uncovered branches/lines (re-invoking the sub-agent from item 6, and this one without a sub-agent, to confirm)
    and re-check.
-7. **Run the full suite** before marking the task done, to catch regressions in other classes this task's change
-   may have affected, by delegating to a sub-agent for the same reason as item 5: `Agent({description: "Run full
+8. **Run the full suite** before marking the task done, to catch regressions in other classes this task's change
+   may have affected, by delegating to a sub-agent for the same reason as item 6: `Agent({description: "Run full
    test suite", prompt: "Run `mvn clean test`. If everything passes, report back only that all tests passed. If
    anything fails, report back only the failing test names, the failure reason, and the stack trace for each —
    not the full Surefire output."})`. Running this in a sub-agent's separate context keeps unneeded passing-test
    output out of the main context window. If the sub-agent reports failures, fix the regression, then re-invoke
    the same sub-agent pattern — repeat until it reports all tests passed.
-8. **Check code quality for the touched file(s)**, scoped the same way as item 1, by delegating to a sub-agent
+9. **Check code quality for the touched file(s)**, scoped the same way as item 1, by delegating to a sub-agent
    for the same reason as before: `Agent({description: "Check for new quality issues in <ClassName>", prompt:
    "Invoke Skill({skill: \"java-code-quality\", args: \"<ClassName>\"}). Compare the reported issues against
    this pre-change baseline: <baseline from item 1>. Report back only the issues that are newly appearing (not
    present in the baseline) — not the full reports and not issues that were already present."})`. Running this
    in a sub-agent's separate context, and having it do the diffing itself, keeps the full reports and
    already-known pre-existing issues out of the main context window since only newly introduced issues matter
-   here. Any issue reported back is a regression this task introduced — fix it (then re-run items 5–7 to confirm
+   here. Any issue reported back is a regression this task introduced — fix it (then re-run items 6–8 to confirm
    the fix didn't break tests or coverage) and re-check until none remain. Leave a new issue in place only if
    fixing it is genuinely unavoidable (e.g. it would contradict what the task explicitly specifies) — in that
    case say so, and why, in the Step 5 note rather than silently accepting it. If the `java-code-quality` skill
    is unavailable in this repository, skip this item.
-9. Only once 4–8 all pass: proceed to Step 5 for this task, then continue to the next unchecked task.
+10. Only once 4–9 all pass: proceed to Step 5 for this task, then continue to the next unchecked task.
 
 ## Step 5 — Check the task's boxes in `implementation_plan.md`
 
