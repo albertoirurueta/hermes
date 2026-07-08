@@ -37,7 +37,7 @@ whole package, or the full suite) over a narrow one.
 mvn clean jacoco:prepare-agent test jacoco:report -Dtest=<selector>
 ```
 
-Omit `-Dtest=<selector>` entirely to run the full suite. Do not add `-P '!build-extras'` or other profile flags —
+Omit `-Dtest=<selector>` entirely to run the full suite. Do not add profile flags —
 they only affect the `package`-phase source/javadoc jar attachment, which this command never reaches, so they
 have no effect on the test run or the coverage report and just add noise.
 

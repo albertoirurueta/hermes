@@ -21,7 +21,7 @@ mvn clean compile checkstyle:checkstyle pmd:pmd spotbugs:spotbugs
   (a custom `configLocation`/`rulesets` file, or the plugin's own defaults if the pom doesn't override them).
 - Running the three goals directly, instead of `mvn site`, skips the slower javadoc/JXR/Surefire-report
   generation the full site build also does — this is meant to be a quick, focused quality pass.
-- Do not add `-P '!build-extras'` — that profile only affects package-phase source/javadoc jar attachment and has
+- Do not add profile flags, they only affect package-phase source/javadoc jar attachment and has
   no effect on these goals.
 
 If the build fails outright (e.g. a compile error), report that and stop — the reports below won't have been

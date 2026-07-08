@@ -1,7 +1,7 @@
 ---
 name: code
 description: Execute the tasks in implementation_plan.md at the repository root, one at a time — implement each task per the plan, add or update JUnit tests achieving at least 80% coverage for the changed code, run the full test suite, verify the task introduced no new Checkstyle/PMD/SpotBugs issues, and check off the task's checkbox directly in implementation_plan.md before moving to the next. Runs autonomously — user intervention is limited to unresolved errors, decisions only the user can make, or permissions the allowed-tools list doesn't cover. Warns the user up front if implementation_plan.md already exists at the repository root (expected only when resuming an interrupted prior run). On successful completion, archives the plan to .archive/, asks the user whether to open follow-up tasks or GitHub issues if overall code quality isn't excellent, and asks for a final review of all code changes. Invoke as `/code` once implementation_plan.md exists (e.g. produced by the `plan` skill).
-allowed-tools: Read Edit Write Bash(mvn *) Bash(git status *) Bash(git diff *) Bash(git log *) Bash(find *) Bash(grep *) Bash(ls *) Bash(mkdir *) Bash(mv *) Bash(date *) Bash(gh issue create *) TaskCreate TaskUpdate TaskList TaskGet Skill
+allowed-tools: Read Edit Write Bash(mvn *) Bash(git status *) Bash(git diff *) Bash(git log *) Bash(find *) Bash(grep *) Bash(ls *) Bash(mkdir *) Bash(mv *) Bash(date *) Bash(gh issue create *) TaskCreate TaskUpdate TaskList TaskGet Skill Agent
 ---
 
 # Implementation
@@ -52,10 +52,15 @@ can see live progress. Mark each `TaskUpdate`d as completed as you finish it, in
 in Step 5. This is in addition to, not a replacement for, updating `implementation_plan.md` — the plan file is
 the durable record; the task list is the live view.
 
-Before implementing anything, run `Skill({skill: "java-code-quality"})` once, unscoped, and record the total
-issue count per tool (Checkstyle/PMD/SpotBugs) plus the per-file list. This is the baseline the final check in
-Step 7 compares against to judge whether the plan's work left overall code quality at least as good as it found
-it. Skip this only if the `java-code-quality` skill is unavailable in this repository.
+Before implementing anything, capture the project-wide quality baseline by delegating to a sub-agent rather than
+running `java-code-quality` directly: `Agent({description: "Capture code-quality baseline", prompt: "Invoke
+Skill({skill: \"java-code-quality\"}) unscoped, then report back only the total issue count per tool
+(Checkstyle/PMD/SpotBugs) and the per-file list of issues — not the raw generated reports."})`. Running it in a
+sub-agent's separate context, and having it return just the issue list rather than the full Checkstyle/PMD/
+SpotBugs reports, keeps the generated report contents out of the main context window since they aren't needed
+here — only the resulting list of issues is. Record that returned list as the baseline the final check in Step 7
+compares against to judge whether the plan's work left overall code quality at least as good as it found it. Skip
+this only if the `java-code-quality` skill is unavailable in this repository.
 
 ## Step 4 — Implement tasks one at a time, in plan order
 
@@ -64,41 +69,64 @@ top of the previous one). Skip any task whose checkbox is already checked (`[x]`
 
 1. **Re-check the current code state** for the files the task touches — the plan may have gone stale since it
    was written (other tasks just completed, or the file changed for unrelated reasons). Read the actual current
-   content before editing; don't assume the plan's "Current code state" section is still accurate. Also run
-   `java-code-quality` scoped to the file(s) this task is about to touch
-   (`Skill({skill: "java-code-quality", args: "<ClassName>"})`, once per touched class), and record any issues
-   already present as this task's pre-change baseline — an empty baseline if the file is new. This is what the
-   quality check later in this task list compares against, so it flags only issues this task introduces, not
-   pre-existing ones.
+   content before editing; don't assume the plan's "Current code state" section is still accurate. Also capture
+   this task's pre-change quality baseline by delegating to a sub-agent, once per touched class:
+   `Agent({description: "Capture pre-change quality baseline for <ClassName>", prompt: "Invoke
+   Skill({skill: \"java-code-quality\", args: \"<ClassName>\"}), then report back only the list of issues
+   found for this class — not the raw generated reports."})`. As in Step 3, running this in a sub-agent and
+   having it return just the issue list (not the full Checkstyle/PMD/SpotBugs reports) keeps unneeded report
+   content out of the main context window. Record the returned issues as this task's pre-change baseline — an
+   empty baseline if the file is new. This is what the quality check later in this task list compares against,
+   so it flags only issues this task introduces, not pre-existing ones.
 2. **Implement exactly what the task specifies**: the named file(s), the described class/method/field, the
-   behavior, the hook/interface it implements. Follow this repository's conventions from `CLAUDE.md` (Java 17,
-   `final var` for locals, full Javadoc with `@param`/`@return`/`@throws` on every public/protected member,
-   `IllegalArgumentException` for invalid arguments, no new runtime dependencies). Don't add anything the task
-   didn't ask for — no speculative abstractions, no unrelated cleanup.
+   behavior, the hook/interface it implements. Follow this repository's conventions from `CLAUDE.md` (Java version,
+   `final var` typie inference for locals (only if code already uses it), full Javadoc with `@param`/`@return`/`@throws`
+   on every public/protected member, `IllegalArgumentException` for invalid arguments, no new runtime dependencies). 
+   Don't add anything the task didn't ask for — no speculative abstractions, no unrelated cleanup.
 3. **Write or update the tests** the task calls for, following the existing test style in the same package
    (JUnit 5, Mockito only where already used). Cover the new/changed behavior, including edge cases implied by
    the Javadoc `@throws` contracts (e.g. null/invalid-argument cases).
-4. **Run the scoped tests** for the affected class(es) via the `java-test` skill, scoped to the touched test
-   class(es)/method(s): `Skill({skill: "java-test", args: "<TestClass>"})` (or a comma/wildcard selector per
-   that skill's Step 1 if several classes are affected). If the `java-test` skill is unavailable in this
-   repository, fall back to `mvn test -Dtest=<TestClass>` directly. Fix and re-run until green — don't move on
-   with a red test.
-5. **Check coverage** for the changed/new classes is at least 80% line coverage, via the `java-coverage` skill:
-   `Skill({skill: "java-coverage", args: "<TestClass>"})` (or a comma/wildcard selector per that skill's Step 1,
-   plus explicit target class names, if the task spans several classes). If the `java-coverage` skill is
-   unavailable in this repository, fall back to running
-   `mvn clean jacoco:prepare-agent test jacoco:report -Dtest=<TestClass>` directly and reading the generated
-   `target/site/jacoco/jacoco.csv` for the specific class(es) touched — check the actual reported percentage,
-   don't estimate it. If under 80%, add tests for the uncovered branches/lines and re-check.
-6. **Run the full suite** (`mvn clean test`) before marking the task done, to catch regressions in other classes
-   this task's change may have affected.
-7. **Check code quality for the touched file(s)** via `java-code-quality`, scoped the same way as item 1:
-   `Skill({skill: "java-code-quality", args: "<ClassName>"})`. Diff the reported issues against this task's
-   baseline from item 1. Any issue that wasn't in the baseline is a regression this task introduced — fix it
-   (then re-run 4–6 to confirm the fix didn't break tests or coverage) and re-check until none remain. Leave a
-   new issue in place only if fixing it is genuinely unavoidable (e.g. it would contradict what the task
-   explicitly specifies) — in that case say so, and why, in the Step 5 note rather than silently accepting it.
-   If the `java-code-quality` skill is unavailable in this repository, skip this item.
+4. **Run the scoped tests** for the affected class(es) by delegating to a sub-agent rather than running
+   `java-test` directly: `Agent({description: "Run tests for <TestClass>", prompt: "Invoke Skill({skill:
+   \"java-test\", args: \"<TestClass>\"}) (or a comma/wildcard selector per that skill's Step 1 if several
+   classes are affected; fall back to `mvn test -Dtest=<TestClass>` directly if the java-test skill is
+   unavailable). If everything passes, report back only that all tests passed. If anything fails, report back
+   only the failing test names, the failure reason, and the stack trace for each — not the full Surefire
+   output."})`. Running this in a sub-agent's separate context keeps unneeded passing-test output out of the
+   main context window. If the sub-agent reports failures, fix the implementation and/or tests based on the
+   reported names/reasons/stack traces, then re-invoke the same sub-agent pattern — repeat until it reports all
+   tests passed. Don't move on with a red test.
+5. **Check coverage** for the changed/new classes is at least 80% line coverage, by delegating to a sub-agent
+   rather than running `java-coverage` directly: `Agent({description: "Check coverage for <TestClass>", prompt:
+   "Invoke Skill({skill: \"java-coverage\", args: \"<TestClass>\"}) (or a comma/wildcard selector per that
+   skill's Step 1, plus explicit target class names, if several classes are involved; fall back to `mvn clean
+   jacoco:prepare-agent test jacoco:report -Dtest=<TestClass>` directly and reading
+   `target/site/jacoco/jacoco.csv` if the java-coverage skill is unavailable). Report back, for each target
+   class only, its line coverage percentage and branch coverage percentage — not the full report or which
+   specific lines/branches are covered or uncovered."})`. Running this in a sub-agent's separate context keeps
+   the detailed per-line/per-branch report data out of the main context window since only the percentages are
+   needed here. Check the actual reported percentage, don't estimate it. If under 80%, add tests for the
+   uncovered branches/lines (re-invoking the sub-agent from item 4, and this one without a sub-agent, to confirm)
+   and re-check.
+6. **Run the full suite** before marking the task done, to catch regressions in other classes this task's change
+   may have affected, by delegating to a sub-agent for the same reason as item 4: `Agent({description: "Run full
+   test suite", prompt: "Run `mvn clean test`. If everything passes, report back only that all tests passed. If
+   anything fails, report back only the failing test names, the failure reason, and the stack trace for each —
+   not the full Surefire output."})`. Running this in a sub-agent's separate context keeps unneeded passing-test
+   output out of the main context window. If the sub-agent reports failures, fix the regression, then re-invoke
+   the same sub-agent pattern — repeat until it reports all tests passed.
+7. **Check code quality for the touched file(s)**, scoped the same way as item 1, by delegating to a sub-agent
+   for the same reason as before: `Agent({description: "Check for new quality issues in <ClassName>", prompt:
+   "Invoke Skill({skill: \"java-code-quality\", args: \"<ClassName>\"}). Compare the reported issues against
+   this pre-change baseline: <baseline from item 1>. Report back only the issues that are newly appearing (not
+   present in the baseline) — not the full reports and not issues that were already present."})`. Running this
+   in a sub-agent's separate context, and having it do the diffing itself, keeps the full reports and
+   already-known pre-existing issues out of the main context window since only newly introduced issues matter
+   here. Any issue reported back is a regression this task introduced — fix it (then re-run items 4–6 to confirm
+   the fix didn't break tests or coverage) and re-check until none remain. Leave a new issue in place only if
+   fixing it is genuinely unavoidable (e.g. it would contradict what the task explicitly specifies) — in that
+   case say so, and why, in the Step 5 note rather than silently accepting it. If the `java-code-quality` skill
+   is unavailable in this repository, skip this item.
 8. Only once 4–7 all pass: proceed to Step 5 for this task, then continue to the next unchecked task.
 
 ## Step 5 — Check the task's boxes in `implementation_plan.md`
@@ -109,9 +137,9 @@ all times in case the run is interrupted):
 - Check that task's own checkbox (`[ ]` → `[x]`), and the checkbox of every sub-task under it that was part of
   the completed work.
 - Add a short note under the task (one or two lines) naming the files touched, the tests added/updated, the
-  coverage achieved, and the code-quality result, e.g. `- [x] **Add `ComparableCollectionItemChangeDetector`** —
-  tests in ComparableCollectionItemChangeDetectorTest (94% line coverage, no new Checkstyle/PMD/SpotBugs
-  issues).` If a new issue was left in place as unavoidable (Step 4 item 7), name it and the reason here instead.
+  coverage achieved, and the code-quality result, e.g. `- [x] **Add `Widget`** — tests in WidgetTest (94% line
+  coverage, no new Checkstyle/PMD/SpotBugs issues).` If a new issue was left in place as unavoidable (Step 4 item
+  7), name it and the reason here instead.
 - Save the file, then update the mirrored entry in the session task list (Step 3) to completed.
 
 ## Step 6 — When to interrupt the user
@@ -137,15 +165,25 @@ stays at the root so the next run can resume it).
 
 ## Step 7 — Final verification
 
-Once every checkbox is checked, run the full local verification from `CLAUDE.md`:
-`mvn clean jacoco:prepare-agent install jacoco:report javadoc:jar source:jar -P '!build-extras'` to confirm the
-whole build — not just the incrementally-tested pieces — is healthy. If this fails, fix it (or, if it's a
-genuine blocker per Step 6, stop and surface it) — do not archive a plan behind a broken build.
+Once every checkbox is checked, confirm the whole build — not just the incrementally-tested pieces — is healthy
+by running the full local verification from `CLAUDE.md` in a sub-agent, for the same reason as the other
+verification steps in Step 4: `Agent({description: "Run full local verification", prompt: "Run `mvn clean
+jacoco:prepare-agent install jacoco:report javadoc:jar source:jar -P '!build-extras'`. If it succeeds, report
+back only that the build succeeded. If it fails, report back only the failing module/goal, the failure reason,
+and the relevant error output/stack trace — not the full build log."})`. Running this in a sub-agent's separate
+context keeps the verbose build output out of the main context window. If it fails, fix it (or, if it's a
+genuine blocker per Step 6, stop and surface it) — do not archive a plan behind a broken build. Re-invoke the
+same sub-agent pattern after fixing, and repeat until it reports success.
 
 Then assess overall code quality against the baseline captured in Step 3:
 
-1. Run `Skill({skill: "java-code-quality"})` unscoped, project-wide, and compare its total issue counts
-   (Checkstyle/PMD/SpotBugs) and per-file list against the Step 3 baseline.
+1. Run the project-wide quality check by delegating to a sub-agent, for the same reason as the other quality
+   checks in this skill: `Agent({description: "Compare final quality against baseline", prompt: "Invoke
+   Skill({skill: \"java-code-quality\"}) unscoped, project-wide. Compare the reported issues against this
+   baseline: <baseline from Step 3>. Report back only the total issue count per tool (Checkstyle/PMD/SpotBugs)
+   and the per-file list of issues — not the raw generated reports."})`. Running this in a sub-agent's separate
+   context keeps the full reports out of the main context window. Compare the returned counts/per-file list
+   against the Step 3 baseline.
 2. If the total issue count did not increase and is zero (or was already zero at baseline and still is), overall
    quality is excellent — proceed to Step 8.
 3. Otherwise — the plan's work leaves the project with more issues than it started with, or a nonzero count
