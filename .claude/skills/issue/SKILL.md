@@ -1,13 +1,13 @@
 ---
 name: issue
-description: End-to-end kickoff for a GitHub issue — requires an issue ID, unlike `explore`/`plan` this skill stops if none is given. Fetches the issue, classifies it as a feature or a hotfix from its labels/content, creates a `feature/<issue-id>` or `hotfix/<issue-id>` branch off the current branch, then runs the `explore` and `plan` skills for that issue. Once a reviewable `implementation_plan.md` exists, asks whether to hand off implementation to the `code` skill (run in an isolated sub-agent) or stop for manual review; once implementation is done, pushes the branch, opens a pull request back to the branch `/issue` was run from, and uses the `pr-description` skill to fill in its description. Invoke as `/issue <issue-id>`. Use when starting work on a tracked issue and you want branch creation, exploration, planning, implementation, and PR creation done in one pass.
+description: End-to-end kickoff for a GitHub issue — requires an issue ID, unlike `explore`/`plan` this skill stops if none is given. Fetches the issue, classifies it as a feature or a hotfix from its labels/content, creates a `feature/<issue-id>` or `hotfix/<issue-id>` branch off the current branch, then runs the `explore` and `plan` skills for that issue. Once a reviewable `implementation_plan.md` exists, asks whether to hand off implementation to the `code` skill (run in an isolated sub-agent) or stop for manual review; once implementation is done, pushes the branch, opens a pull request back to the branch `/issue` was run from, uses the `pr-description` skill to fill in its description, then runs the `pr-review` skill (passing both the new PR's id and the issue id) to leave review comments on it. Invoke as `/issue <issue-id>`. Use when starting work on a tracked issue and you want branch creation, exploration, planning, implementation, PR creation, and an initial code review done in one pass.
 ---
 
 # Issue
 
-Take a GitHub issue from "just filed" to "pull request open for review" in one pass. This skill orchestrates
-`explore`, `plan`, `code`, and `pr-description` — it does not duplicate their logic, it sequences them around
-branch creation, issue triage, and PR creation.
+Take a GitHub issue from "just filed" to "pull request open for review, with review comments already left" in one
+pass. This skill orchestrates `explore`, `plan`, `code`, `pr-description`, and `pr-review` — it does not duplicate
+their logic, it sequences them around branch creation, issue triage, and PR creation.
 
 ## Step 1 — Resolve the issue ID (required)
 
@@ -144,9 +144,17 @@ Only reached when Step 6's sub-agent reports successful completion.
    draft and may drop the placeholder's issue link. If the reference is gone, append it back:
    `gh pr edit <number> --body "$(gh pr view <number> --json body -q .body)"$'\n\n'"Closes #<issue-id>."` so the
    issue still auto-closes when the PR merges.
+6. Invoke `Skill({skill: "pr-review", args: "<number> <issue-id>"})` to get an initial code review left on the PR
+   — passing the issue id explicitly (rather than relying on `pr-review`'s own body/title detection) since this
+   skill already knows with certainty which issue the new PR closes. `pr-review` runs its own confirmation before
+   posting anything, so no separate confirmation is needed here; wait for it to finish before moving to Step 8.
+   If it reports it couldn't proceed (e.g. no PR could be fetched, which shouldn't happen since it was just
+   created), surface that to the user rather than treating it as a hard failure of this skill — the PR itself is
+   still open and usable.
 
 ## Step 8 — Report
 
 Summarize for the user: the issue ID and title, the classification (feature/hotfix) and why, the branch created
 and its base, and the final outcome — either manual review pending (Step 6), or the sub-agent's implementation
-summary plus the PR URL and confirmation the issue is linked (Step 7).
+summary, the PR URL, confirmation the issue is linked, and `pr-review`'s outcome (findings posted, or the drafted
+review if the user declined to post) (Step 7).

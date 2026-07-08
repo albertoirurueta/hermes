@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Review a GitHub pull request's changes by id. Fetches the PR diff and, if the PR body/title links a GitHub issue (e.g. "Closes #N"), fetches that issue too for context on intent. Runs the `explore` skill (grounded in the linked issue when there is one) to understand the codebase's current architecture and conventions before judging the diff. When the `code-review` skill is available, delegates the correctness/reuse/simplification/efficiency analysis to it (via its `--comment` flag) rather than duplicating that logic, and layers on its own checks for issue-intent alignment and codebase-convention drift; if `code-review` isn't available, runs the full review itself. Drafts its own findings and — after explicit confirmation — posts them as inline review comments on the pull request for manual follow-up. Invoke as `/pr-review <pr-id>`. Use when the user wants an actual PR reviewed and commented on, not a description generated (`pr-description`).
+description: Review a GitHub pull request's changes by id. Optionally takes the linked GitHub issue id as a second argument (skipping auto-detection); otherwise looks for a link in the PR body/title (e.g. "Closes #N") and fetches that issue for context on intent. Runs the `explore` skill (grounded in the linked issue when there is one) to understand the codebase's current architecture and conventions before judging the diff. When the `code-review` skill is available, delegates the correctness/reuse/simplification/efficiency analysis to it (via its `--comment` flag) rather than duplicating that logic, and layers on its own checks for issue-intent alignment and codebase-convention drift; if `code-review` isn't available, runs the full review itself. Drafts its own findings and — after explicit confirmation — posts them as inline review comments on the pull request for manual follow-up. Invoke as `/pr-review <pr-id> [issue-id]`. Use when the user wants an actual PR reviewed and commented on, not a description generated (`pr-description`).
 ---
 
 # PR Review
@@ -13,13 +13,16 @@ skill is available, this skill prefers delegating to it for correctness/reuse/si
 review on what `code-review` has no way to know: whether the change matches the linked issue's intent and whether
 it follows this codebase's own conventions.
 
-## Step 1 — Resolve the PR id (required)
+## Step 1 — Resolve the PR id (required) and issue id (optional)
 
 An issue ID is optional but a PR id is not — there is nothing to review without it.
 
-- **Argument provided** (e.g. `/pr-review 17`): use it, go to Step 2.
-- **No argument provided**: ask the user via `AskUserQuestion` for the pull request number. If they decline or
-  give none, stop here entirely and tell them this skill requires a PR id (e.g. `/pr-review 17`).
+- **PR id argument provided** (e.g. `/pr-review 17`, or `/pr-review 17 42` to also pass the issue id explicitly):
+  use it, go to Step 2. If a second argument is present, treat it as the linked issue id and use it directly in
+  Step 3 — skip that step's own detection since the caller (e.g. the `issue` skill, which knows exactly which
+  issue a PR it just opened closes) already knows the relationship with certainty.
+- **No PR id provided**: ask the user via `AskUserQuestion` for the pull request number. If they decline or give
+  none, stop here entirely and tell them this skill requires a PR id (e.g. `/pr-review 17`).
 
 ## Step 2 — Fetch the pull request
 
@@ -49,15 +52,19 @@ Note the existing comments/reviews so Step 6 doesn't re-raise points already mad
 
 ## Step 3 — Find a linked GitHub issue, if any
 
-Look for an issue reference in the PR title or body: patterns like `Closes #N`, `Fixes #N`, `Resolves #N`, or a
-bare `#N` mention. If found, fetch it the same way the `explore`/`issue` skills do:
+If Step 1 already received an explicit issue id, skip detection and use it directly.
+
+Otherwise, look for an issue reference in the PR title or body: patterns like `Closes #N`, `Fixes #N`,
+`Resolves #N`, or a bare `#N` mention.
+
+Either way, once an issue id is known, fetch it the same way the `explore`/`issue` skills do:
 
 ```bash
 gh issue view <issue-id> --json number,title,body,labels,comments,state,url
 ```
 
-If no reference is found, or the issue can't be fetched, continue without one — this skill works fine on a PR
-with no linked issue, it just loses that piece of intent context.
+If no reference is found/provided, or the issue can't be fetched, continue without one — this skill works fine on
+a PR with no linked issue, it just loses that piece of intent context.
 
 ## Step 4 — Explore the codebase
 
