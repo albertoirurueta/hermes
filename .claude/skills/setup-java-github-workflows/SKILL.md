@@ -1,15 +1,20 @@
 ---
 name: setup-java-github-workflows
-description: Create or update the `develop.yml` and `main.yml` GitHub Actions workflows for a Java/Maven library repository — build and test, run Checkstyle/PMD/SpotBugs static analysis, generate JaCoCo coverage and the Maven `site` report, send results to SonarQube/SonarCloud, build the Antora documentation site, publish both the Antora docs and the Maven site report to GitHub Pages, and publish the release artifact to Maven Central. Invoke as `/setup-java-github-workflows`. Ships with generic example templates (derived from a real repository's workflows, genericized so they don't name any specific repository) embedded in this skill file, reusable across repositories. Creates both workflows from scratch if neither exists; if either already exists, asks the user whether to stop or attempt an update using the templates as reference. Accepts the six pipeline parameters (integration branch, Java version, publishing server id, extras/sign profile ids, settings file) pre-resolved via `args` (`key: value` lines) so an orchestrating skill like `setup-java-library-repository` can supply them without re-prompting. Use whenever a Java/Maven repository needs this CI/CD release pipeline bootstrapped or brought in line with this house pattern, instead of hand-writing the YAML.
+description: Create or update the `develop.yml`, `main.yml`, and `sync.yml` GitHub Actions workflows for a Java/Maven library repository — build and test, run Checkstyle/PMD/SpotBugs static analysis, generate JaCoCo coverage and the Maven `site` report, send results to SonarQube/SonarCloud, build the Antora documentation site, publish both the Antora docs and the Maven site report to GitHub Pages, publish the release artifact to Maven Central, and — once a release is published — open a pull request that merges the released branch back into the integration branch and bumps the development snapshot version across `pom.xml`, `README.md`, and the Antora docs (via the companion `.github/scripts/sync_versions.py` script). Invoke as `/setup-java-github-workflows`. Ships with generic example templates (derived from a real repository's workflows, genericized so they don't name any specific repository) embedded in this skill file, reusable across repositories. Creates all three workflows (and the sync script) from scratch if none exist; if any already exists, asks the user whether to stop or attempt an update using the templates as reference. Accepts the six pipeline parameters (integration branch, Java version, publishing server id, extras/sign profile ids, settings file) pre-resolved via `args` (`key: value` lines) so an orchestrating skill like `setup-java-library-repository` can supply them without re-prompting. Use whenever a Java/Maven repository needs this CI/CD release pipeline bootstrapped or brought in line with this house pattern, instead of hand-writing the YAML.
 ---
 
 # Setup Java GitHub Workflows
 
-Scaffold (or update) two GitHub Actions workflows for a Java/Maven library:
+Scaffold (or update) three GitHub Actions workflows for a Java/Maven library:
 
 - **`develop.yml`** — runs on every push to the integration branch. Build, test, static analysis, coverage, a
   SonarQube/SonarCloud scan, an Antora docs build, and a publish to GitHub Pages + Maven Central.
 - **`main.yml`** — the same pipeline, but triggered when a GitHub Release is published rather than on every push.
+- **`sync.yml`** — triggered when a GitHub Release is published from the stable branch. Opens a pull request into
+  the integration branch that merges the released branch back in and bumps the development snapshot version in
+  `pom.xml`, `README.md`, and the Antora docs, via the companion script `.github/scripts/sync_versions.py`. This
+  closes the gap where a release branch's version/doc bump never makes it back into the integration branch without
+  a manual follow-up.
 
 This skill is designed for Maven projects — the templates in Step 3 assume Maven coordinates, profiles, and
 `mvn` commands. If `pom.xml` is missing at the repository root, don't stop automatically: warn the user that this
@@ -75,21 +80,40 @@ a real answer, not guessed. If `pom.xml` is missing and the user chose to contin
   root if none is referenced yet. If it doesn't exist, this skill creates it (Step 6).
 - **Branch names** (skip the integration branch if `integration-branch` supplied via `args`): confirm the
   integration branch (commonly `develop`) and the stable branch (commonly `main`) actually match this
-  repository's branching model — run `git branch -a` or ask, don't assume gitflow defaults.
+  repository's branching model — run `git branch -a` or ask, don't assume gitflow defaults. Both are needed for
+  `sync.yml` (Step 3): the stable branch is what it checks the release was published from, the integration branch
+  is where its pull request lands.
+- **README/Antora version-snippet wording** (only needed for `sync.yml`'s companion script,
+  `sync_versions.py`): read `README.md`'s project-status table and installation snippet, and any Antora page
+  matched by `grep -rl "<version>" docs/modules/ROOT/pages/*.adoc`, to find the exact row label used for the
+  development-snapshot row (e.g. `Current development version`) and the exact marker text preceding each
+  `<version>` tag (e.g. `Latest release`/`Latest snapshot`, possibly with a trailing qualifier like `Latest
+  release shown here`). `sync_versions.py`'s regexes must match this repository's actual wording, not just the
+  `setup-readme` skill's default convention — note any deviation now so Step 4 can adjust the template correctly.
+  If `README.md` doesn't exist yet, or was not produced by the `setup-readme` skill, tell the user
+  `sync_versions.py`'s README step will need hand-adjustment once the file exists.
 
 ## Step 2 — Decide how to proceed if workflows already exist
 
-Check whether `.github/workflows/develop.yml` and `.github/workflows/main.yml` already exist.
+Check whether `.github/workflows/develop.yml`, `.github/workflows/main.yml`, `.github/workflows/sync.yml`, and
+`.github/scripts/sync_versions.py` already exist. Treat `sync.yml` and its script as one unit for this check —
+either both exist or neither should.
 
-- **Neither exists**: skip this step and go straight to Step 4 — create both from scratch.
-- **Either exists**: use `AskUserQuestion` to ask whether to (a) stop here and leave both workflows untouched, or
-  (b) continue and attempt to update the existing workflow(s) using this skill's templates as reference.
+- **None exist**: skip this step and go straight to Step 4 — create everything from scratch.
+- **Any exists**: use `AskUserQuestion` to ask whether to (a) stop here and leave everything untouched, or
+  (b) continue and attempt to update the existing file(s) using this skill's templates as reference.
   - **Stop**: report which file(s) already exist and end here — make no changes.
   - **Continue**: proceed to Step 4, but treat each existing file as the base to edit, not as something to
-    overwrite wholesale. Preserve any step that isn't one of the eight pipeline stages this skill owns (build/test,
-    static analysis, coverage, site report, SonarQube, Antora build, GitHub Pages publish, Maven Central publish)
-    — e.g. a Slack notification step or an extra test matrix stays untouched. Only add missing stages or correct
-    outdated ones (wrong action version, wrong profile id, etc.), and don't reorder steps this skill doesn't own.
+    overwrite wholesale.
+    - For `develop.yml`/`main.yml`: preserve any step that isn't one of the eight pipeline stages this skill owns
+      (build/test, static analysis, coverage, site report, SonarQube, Antora build, GitHub Pages publish, Maven
+      Central publish) — e.g. a Slack notification step or an extra test matrix stays untouched. Only add missing
+      stages or correct outdated ones (wrong action version, wrong profile id, etc.), and don't reorder steps this
+      skill doesn't own.
+    - For `sync.yml`/`sync_versions.py`: preserve any file the script updates beyond `pom.xml`/`README.md`/the
+      Antora docs that a prior customization added, and preserve any extra workflow step (e.g. a Slack
+      notification) the same way. Only correct the pipeline stages this skill owns (branch/version computation,
+      the merge, the version bump, the PR creation) or fix a stale placeholder value.
 
 ## Step 3 — Reference templates
 
@@ -213,6 +237,275 @@ Notes on placeholders that are genuinely project-specific and must come from Ste
 - `<sign-profile-id>` / `<extras-profile-id>`: the two profile ids found in Step 1.
 - `<settings-file>`: the Maven settings XML path used for the deploy step (Step 6 creates it if absent).
 
+### `sync.yml` template
+
+Runs once a GitHub Release is published, provided it was published from the stable branch. Opens a pull request
+that merges the released branch back into the integration branch and bumps the development snapshot version via
+the companion `sync_versions.py` script (below):
+
+```yaml
+name: Sync
+
+# After a release is published from <stable-branch>, open a pull request that merges it back into
+# <integration-branch> and bumps the development snapshot version, so <integration-branch> never has to wait for a
+# manual sync branch.
+on:
+  release:
+    types: [released]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Open sync PR from the released branch into <integration-branch>
+    runs-on: ubuntu-latest
+    if: github.event.release.target_commitish == '<stable-branch>'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compute versions and branch names
+        id: versions
+        run: |
+          set -euo pipefail
+          RELEASE_VERSION="${{ github.event.release.tag_name }}"
+          RELEASE_VERSION="${RELEASE_VERSION#v}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$RELEASE_VERSION"
+          if [ -z "${MAJOR:-}" ] || [ -z "${MINOR:-}" ] || [ -z "${PATCH:-}" ]; then
+            echo "::error::Release tag '$RELEASE_VERSION' is not in X.Y.Z form; cannot compute the next snapshot."
+            exit 1
+          fi
+
+          NEXT_MINOR=$((MINOR + 1))
+          NEXT_SNAPSHOT="${MAJOR}.${NEXT_MINOR}.0-SNAPSHOT"
+          SYNC_BRANCH="sync_${MAJOR}.${NEXT_MINOR}.0"
+
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "next_snapshot=$NEXT_SNAPSHOT" >> "$GITHUB_OUTPUT"
+          echo "sync_branch=$SYNC_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this release was already synced
+        id: guard
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "${{ steps.versions.outputs.sync_branch }}" >/dev/null 2>&1; then
+            echo "::notice::${{ steps.versions.outputs.sync_branch }} already exists on origin; skipping."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git identity
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create sync branch from <integration-branch>
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          git fetch origin <integration-branch> <stable-branch>
+          git checkout -b "${{ steps.versions.outputs.sync_branch }}" "origin/<integration-branch>"
+
+      - name: Merge the released branch into the sync branch
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          git merge --no-ff --no-edit \
+            -m "Merge <stable-branch> (${{ steps.versions.outputs.release_version }}) into <integration-branch>" \
+            "origin/<stable-branch>"
+
+      - name: Set up Python
+        if: steps.guard.outputs.exists == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Bump the development snapshot version
+        if: steps.guard.outputs.exists == 'false'
+        env:
+          RELEASE_VERSION: ${{ steps.versions.outputs.release_version }}
+          NEXT_SNAPSHOT: ${{ steps.versions.outputs.next_snapshot }}
+        run: python3 .github/scripts/sync_versions.py
+
+      - name: Commit the version bump
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          git add pom.xml README.md docs/antora.yml docs/modules/ROOT/pages
+          git diff --cached --quiet || git commit -m "Sync ${{ steps.versions.outputs.next_snapshot }}"
+
+      - name: Push sync branch
+        if: steps.guard.outputs.exists == 'false'
+        run: git push origin "${{ steps.versions.outputs.sync_branch }}"
+
+      - name: Ensure the sync label exists
+        if: steps.guard.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create sync --description "Sync pull request from a release branch back into <integration-branch>" --color 0e8a16 \
+            || gh label list --search sync >/dev/null
+
+      - name: Open pull request into <integration-branch>
+        if: steps.guard.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base <integration-branch> \
+            --head "${{ steps.versions.outputs.sync_branch }}" \
+            --title "Sync ${{ steps.versions.outputs.next_snapshot }}" \
+            --body "Merges \`<stable-branch>\` back into \`<integration-branch>\` after releasing \`${{ steps.versions.outputs.release_version }}\`, and bumps the development snapshot version to \`${{ steps.versions.outputs.next_snapshot }}\` in \`pom.xml\`, \`README.md\`, and the Antora docs." \
+            --label sync
+```
+
+Notes specific to this template:
+
+- `<stable-branch>`: the branch releases are published from (e.g. `main`, sometimes `master`) — resolved in Step 1,
+  used both in the `if:` guard and the merge source.
+- The snapshot bump always assumes a minor-version bump with the patch reset to `0` (e.g. release `1.3.0` → next
+  snapshot `1.4.0-SNAPSHOT`) — this matches the conventional gitflow pattern where a release branch is cut from a
+  pre-bumped `-SNAPSHOT` on the integration branch. If the target repository does patch-level releases too, flag
+  this as an open gap in Step 8 rather than silently guessing which bump the user wants.
+- `CHANGELOG.md` is deliberately not touched by this workflow: whatever process turns the release branch's
+  `[Unreleased]` section into a dated release section (by hand, or via a skill like this repository's own
+  `/release`) already happens before the tag is published, so it arrives on `<integration-branch>` unchanged via
+  the merge step above.
+- The `permissions:` block is necessary but not sufficient — flag in Step 7 that the repository's Settings → Actions
+  → General → "Workflow permissions" must also allow GitHub Actions to create pull requests, or `gh pr create` will
+  fail with a permissions error even though the token has the right scopes declared here.
+
+### `sync_versions.py` template
+
+Companion script for `sync.yml`, at `.github/scripts/sync_versions.py`. Reads `RELEASE_VERSION`/`NEXT_SNAPSHOT`
+from the environment and rewrites every version reference the merge step doesn't already carry forward. The
+`<artifact-id>` and README/Antora regexes below are placeholders — resolve them from Step 1's survey of this
+repository's actual `pom.xml` artifact id and README/Antora wording before writing the real file:
+
+```python
+#!/usr/bin/env python3
+"""Rewrites version references after a release, for the Sync workflow.
+
+Reads RELEASE_VERSION and NEXT_SNAPSHOT from the environment and updates
+pom.xml, README.md, docs/antora.yml, and any Antora page that carries the
+same "Latest release" / "Latest snapshot" dependency snippets as README.md.
+
+CHANGELOG.md is intentionally left untouched: its release section and fresh
+"[Unreleased]" heading are written before the tag is published, and arrive on
+<integration-branch> via the merge that precedes this script, not by bumping
+a version string.
+"""
+import os
+import re
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def replace_dependency_snippets(text, release_version, next_snapshot):
+    """Replaces the <version> tag following a "Latest release"/"Latest snapshot" marker line."""
+    lines = text.splitlines(keepends=True)
+    pending = None
+    for i, line in enumerate(lines):
+        lower = line.strip().lower()
+        if lower.startswith("latest release"):
+            pending = release_version
+        elif lower.startswith("latest snapshot"):
+            pending = next_snapshot
+        elif pending and "<version>" in line:
+            lines[i] = re.sub(r"(<version>)[^<]*(</version>)", rf"\g<1>{pending}\g<2>", line)
+            pending = None
+    return "".join(lines)
+
+
+def update_pom(release_version, next_snapshot):
+    path = REPO_ROOT / "pom.xml"
+    text = path.read_text()
+    updated, count = re.subn(
+        r"(<artifactId><artifact-id></artifactId>\s*\n\s*<version>)[^<]*(</version>)",
+        rf"\g<1>{next_snapshot}\g<2>",
+        text,
+        count=1,
+    )
+    if count != 1:
+        sys.exit("pom.xml: could not find the <artifact-id> <version> element to bump")
+    path.write_text(updated)
+
+
+def update_readme(release_version, next_snapshot):
+    path = REPO_ROOT / "README.md"
+    text = path.read_text()
+    # Adjust these two row-label regexes to match this repository's actual README table wording
+    # (resolved in Step 1) if it differs from setup-readme's default "Current development version" /
+    # "Latest release" labels.
+    text = re.sub(
+        r"(\| Current development version \| `)[^`]*(` \|)",
+        rf"\g<1>{next_snapshot}\g<2>",
+        text,
+    )
+    text = re.sub(
+        r"(\| Latest release[^|]*\| `)[^`]*(` \|)",
+        rf"\g<1>{release_version}\g<2>",
+        text,
+    )
+    text = replace_dependency_snippets(text, release_version, next_snapshot)
+    path.write_text(text)
+
+
+def update_antora_component_version(release_version):
+    path = REPO_ROOT / "docs" / "antora.yml"
+    if not path.exists():
+        return
+    text = path.read_text()
+    updated, count = re.subn(r"(?m)^version:.*$", f"version: {release_version}", text, count=1)
+    if count == 1:
+        path.write_text(updated)
+
+
+def update_antora_pages(release_version, next_snapshot):
+    pages_dir = REPO_ROOT / "docs" / "modules" / "ROOT" / "pages"
+    if not pages_dir.exists():
+        return
+    for path in sorted(pages_dir.glob("*.adoc")):
+        text = path.read_text()
+        if "<version>" not in text:
+            continue
+        updated = replace_dependency_snippets(text, release_version, next_snapshot)
+        if updated != text:
+            path.write_text(updated)
+
+
+def main():
+    release_version = os.environ["RELEASE_VERSION"]
+    next_snapshot = os.environ["NEXT_SNAPSHOT"]
+
+    update_pom(release_version, next_snapshot)
+    update_readme(release_version, next_snapshot)
+    update_antora_component_version(release_version)
+    update_antora_pages(release_version, next_snapshot)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+Notes specific to this template:
+
+- `<artifact-id>`: the Maven `artifactId` from Step 1's survey — the `update_pom` regex anchors on the
+  `<artifactId>` element immediately preceding the `<version>` to bump, so it never touches a dependency or plugin
+  version elsewhere in `pom.xml`.
+- `update_antora_component_version` and `update_antora_pages` both no-op cleanly if `docs/antora.yml` or
+  `docs/modules/ROOT/pages` don't exist, so this script is safe to write even before the `antora-setup` skill has
+  run — no need to gate its creation on Antora being present.
+- The Antora component version (`docs/antora.yml`) is intentionally set to the release version, not the next
+  snapshot — matching the convention (used by this repository's own `/release`-style workflow, if present) that
+  the Antora component version tracks the latest actual release.
+
 ## Step 4 — Fill the templates
 
 Substitute every placeholder from Step 1's survey. If any required fact wasn't resolvable there (e.g. no signing
@@ -278,10 +571,12 @@ Before writing the workflows, make sure the files they depend on exist:
 
 ## Step 6 — Write the workflow files
 
-Write (or, per Step 2, carefully update) `.github/workflows/develop.yml` and `.github/workflows/main.yml` with the
-filled-in templates from Step 4, plus any supporting files created in Step 5.
+Write (or, per Step 2, carefully update) `.github/workflows/develop.yml`, `.github/workflows/main.yml`, and
+`.github/workflows/sync.yml` with the filled-in templates from Step 4, plus `.github/scripts/sync_versions.py` and
+any other supporting files created in Step 5. `sync.yml` and `sync_versions.py` are written together — never write
+one without the other.
 
-## Step 7 — List the required repository secrets
+## Step 7 — List required repository secrets and settings
 
 Report the secrets that must exist under the target repository's Settings → Secrets and variables → Actions —
 this skill cannot create them itself:
@@ -293,18 +588,25 @@ this skill cannot create them itself:
 | `SIGNING_KEY` / `SIGNING_KEY_ID` / `SIGNING_PASSWORD` | GPG private key, its key id, and its passphrase, for artifact signing |
 | `SONATYPE_STAGING_PROFILE_ID` | Only needed with the legacy `nexus-staging-maven-plugin`; if the target repo uses `central-publishing-maven-plugin` this secret is unused and can be left unset or removed from the deploy step |
 
-`GITHUB_TOKEN` needs no setup — GitHub Actions provides it automatically.
+`GITHUB_TOKEN` needs no setup — GitHub Actions provides it automatically. `sync.yml` uses it too (no extra secret),
+but also needs the repository setting under Settings → Actions → General → "Workflow permissions" set to allow
+GitHub Actions to create pull requests — the `permissions: contents: write / pull-requests: write` block in the
+workflow itself is not sufficient on its own. Call this out explicitly in Step 8's report, since it's easy to miss
+and `sync.yml` will fail silently-ish (a `gh pr create` permissions error) on the very first real release without it.
 
 ## Step 8 — Report and warn
 
-Summarize what happened: whether both workflows were created fresh, updated in place, or left untouched (Step 2's
-stop path); which supporting files (`sonar-project.properties`, the settings XML) were created versus already
-present; and any open gaps noted in Steps 1/4 (missing Central plugin, missing signing profile, missing Antora
-setup, etc.).
+Summarize what happened: whether the workflows (and `sync_versions.py`) were created fresh, updated in place, or
+left untouched (Step 2's stop path); which supporting files (`sonar-project.properties`, the settings XML) were
+created versus already present; and any open gaps noted in Steps 1/4 (missing Central plugin, missing signing
+profile, missing Antora setup, README/Antora wording that didn't match `sync_versions.py`'s default regexes,
+patch-level releases the minor-bump default doesn't handle, etc.).
 
 Finish with an explicit warning: **the user must review the generated (or updated) workflow files before relying on
 them.** Branch names, profile ids, the Java version, and the Maven Central publishing setup were inferred from this
 repository's current state and may need correction — and because this pipeline handles signing keys and publishes
 artifacts publicly, a bad assumption here has real consequences. Recommend a dry run (e.g. pushing to a throwaway
 branch with the trigger temporarily adjusted, or manually triggering via `workflow_dispatch` if added) before
-trusting it on the real `develop`/release flow.
+trusting it on the real `develop`/release flow. For `sync.yml` specifically, recommend verifying it against a real
+(or test) release before relying on it — confirm the computed next-snapshot version and the exact files it
+touches match expectations, and confirm the "Workflow permissions" repository setting from Step 7 is enabled.

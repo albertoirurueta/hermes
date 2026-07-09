@@ -62,9 +62,12 @@ repo's established convention (e.g. release `1.4.0` → next `1.5.0-SNAPSHOT`). 
 `-SNAPSHOT` is the upcoming version referenced in README/docs text for the rest of this skill.
 
 Note for the final report (Step 15): this skill only writes the release version into `pom.xml` — it does not bump
-`pom.xml` itself to the upcoming SNAPSHOT. In this repo's history that bump happens separately, once the release
-branch is merged (historically via a `sync_x.y.z` branch targeting `develop`). The upcoming version gathered here
-is used purely for the human-readable "latest snapshot" mentions in README/docs.
+`pom.xml` itself to the upcoming SNAPSHOT. That bump happens automatically once the release is published: the
+`Sync` GitHub workflow (`.github/workflows/sync.yml`) opens a `sync_x.y.z` pull request into `develop` that merges
+the released branch back in and bumps `pom.xml`/`README.md`/the Antora docs to the next snapshot. The upcoming
+version gathered here is used for the human-readable "latest snapshot" mentions in README/docs, and should match
+the minor-bump default that workflow computes (major.(minor+1).0-SNAPSHOT) unless there's a specific reason to
+diverge.
 
 ## Step 5 — Create the release branch
 
@@ -177,6 +180,7 @@ description from the actual diff, show it, and — once confirmed — update the
 ## Step 15 — Report
 
 Summarize: the release version and upcoming SNAPSHOT version chosen, the branch and PR URL, which files were
-updated, and what was written to `whats-new.adoc` and `CHANGELOG.md`. Remind the user that bumping `develop`'s
-`pom.xml` to the upcoming SNAPSHOT version is a separate follow-up this skill doesn't perform (per the note in
-Step 4), consistent with how earlier releases in this repo handled it.
+updated, and what was written to `whats-new.adoc` and `CHANGELOG.md`. Remind the user that once this PR is merged
+and a GitHub release is published from it, the `Sync` workflow will automatically open a follow-up PR into
+`develop` bumping the development snapshot (per the note in Step 4) — no manual sync step is needed unless that
+workflow's minor-bump default doesn't match the upcoming SNAPSHOT version chosen here.
