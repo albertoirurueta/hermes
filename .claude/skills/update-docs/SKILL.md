@@ -30,7 +30,19 @@ about the docs module and the codebase fresh each run.
 ## Step 2 — Locate the documentation module
 
 Don't assume a fixed docs path. Find the Antora module(s) actually present, typically by locating `antora.yml`
-file(s) in the repository (`find . -name antora.yml -not -path '*/node_modules/*'`). For each one found:
+file(s) in the repository (`find . -name antora.yml -not -path '*/node_modules/*'`).
+
+- **No `antora.yml` found anywhere**: there is no documentation module yet to update. Ask the user whether Antora
+  documentation should be set up now (via the `antora-setup` skill) before continuing — don't assume either way.
+  - **User agrees**: delegate scaffolding to the `antora-setup` skill, run as a sub-agent via the Agent tool.
+    Brief that sub-agent with the actual context (what changed, per Step 1/3) so its starter pages aren't generic
+    boilerplate disconnected from this update. After it finishes, re-run the `find . -name antora.yml ...` search
+    to pick up the newly created module and proceed with the rest of this step as normal. If the sub-agent
+    reports it stopped short (e.g. Node.js isn't installed, per its own Step 1) and therefore no module was
+    created, relay that blocker to the user and stop rather than continuing without docs.
+  - **User declines**: stop the `update-docs` skill entirely — with no documentation module, there is nothing
+    for it to update, so don't fall back to any other action.
+- **One or more found**: for each one found:
 
 - Read it to get the component name, version, and the nav file(s) it declares under `nav:`.
 - Read each declared `nav.adoc` to get the real page list, then skim each listed page (title + first section is
