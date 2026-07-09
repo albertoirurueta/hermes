@@ -15,6 +15,14 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Verify CHANGELOG.md has an entry for this release
+      run: |
+        TAG="${{ github.event.release.tag_name }}"
+        if ! grep -qF "## [$TAG]" CHANGELOG.md; then
+          echo "::error::CHANGELOG.md has no '## [$TAG]' section. Add a changelog entry for this release (see the /release skill, Step 10) before publishing it."
+          exit 1
+        fi
+
     - name: Set up JDK 17
       uses: actions/setup-java@v5
       with:

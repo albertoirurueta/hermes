@@ -40,6 +40,7 @@ The name reflects the library's purpose: carrying precise information about what
 - 📘 [Antora documentation](http://albertoirurueta.github.io/hermes)
 - 🧾 [Maven site report](http://albertoirurueta.github.io/hermes/mvn-site)
 - 🔍 [SonarCloud dashboard](https://sonarcloud.io/project/overview?id=albertoirurueta_hermes)
+- 📝 [Changelog](CHANGELOG.md)
 
 ## Installation
 

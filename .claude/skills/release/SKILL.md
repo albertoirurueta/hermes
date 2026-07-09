@@ -1,6 +1,6 @@
 ---
 name: release
-description: Convert the current SNAPSHOT version into a final release. Must be run from the `develop` branch (gitflow) — warns and stops otherwise. Asks the user for the release version (current SNAPSHOT stripped, a patch bump, or a major bump) and the next upcoming SNAPSHOT version, creates a `release_x.y.z` branch off `develop`, updates the version in `pom.xml`, README.md, `docs/antora.yml`, and any Antora page showing dependency snippets, creates/updates `docs/modules/ROOT/pages/whats-new.adoc` with a summary of changes since the previous release, opens a pull request for the release branch with a `release` label attached, and uses the `pr-description` skill to fill in its description. Invoke as `/release`. Use whenever the user wants to cut a new release of this library.
+description: Convert the current SNAPSHOT version into a final release. Must be run from the `develop` branch (gitflow) — warns and stops otherwise. Asks the user for the release version (current SNAPSHOT stripped, a patch bump, or a major bump) and the next upcoming SNAPSHOT version, creates a `release_x.y.z` branch off `develop`, updates the version in `pom.xml`, README.md, `docs/antora.yml`, and any Antora page showing dependency snippets, creates/updates `docs/modules/ROOT/pages/whats-new.adoc` and the root `CHANGELOG.md` with a summary of changes since the previous release, opens a pull request for the release branch with a `release` label attached, and uses the `pr-description` skill to fill in its description. Invoke as `/release`. Use whenever the user wants to cut a new release of this library.
 ---
 
 # Release
@@ -79,12 +79,24 @@ tag right after `<artifactId>hermes</artifactId>` — don't touch dependency/plu
 
 ## Step 7 — Update `README.md`
 
-Update every version reference so the README reflects the new release:
+Check whether the `setup-readme` skill is available (present under `.claude/skills/setup-readme`).
 
-- The "Add the following dependency" / Installation code blocks: "Latest release" → the release version, "Latest
-  snapshot" → the upcoming SNAPSHOT version.
-- The Project Status table rows `Current development version` → the upcoming SNAPSHOT version, and
-  `Latest release shown here` → the release version.
+- **Available**: invoke `Skill({skill: "setup-readme"})`. `pom.xml` already carries the release version from Step
+  6, so `setup-readme`'s own exploration picks it up directly; since `README.md` already exists, `setup-readme`
+  will show its own diff and ask for approval (its Step 9) — review that diff here rather than assuming it's
+  correct. Watch specifically for the "latest release" version: at this point in the release flow the release tag
+  doesn't exist yet (it's only created once this branch is merged and published), so `setup-readme`'s git-tag-based
+  detection will still see the *previous* release as "latest" and may not know the upcoming SNAPSHOT version at
+  all (only Step 4 of this skill does). If the proposed README doesn't already show "Latest release" → the release
+  version and "Latest snapshot"/"Current development version" → the upcoming SNAPSHOT version chosen in Step 4,
+  correct those specific mentions by hand before accepting, using the manual approach below as reference — don't
+  accept a diff that regresses those two facts.
+- **Not available**: fall back to updating every version reference by hand so the README reflects the new
+  release:
+  - The "Add the following dependency" / Installation code blocks: "Latest release" → the release version, "Latest
+    snapshot" → the upcoming SNAPSHOT version.
+  - The Project Status table rows `Current development version` → the upcoming SNAPSHOT version, and
+    `Latest release shown here` → the release version.
 
 ## Step 8 — Update `docs/antora.yml`
 
@@ -102,24 +114,36 @@ grep -rl "<version>" docs/modules/ROOT/pages/*.adoc
 For each match (in this repo, `getting-started.adoc`), update its "Latest release" and "Latest snapshot" `<version>`
 values the same way as Step 7. Don't touch pages that don't mention a version.
 
-## Step 10 — Create or update `whats-new.adoc`
+## Step 10 — Determine what changed, then update `whats-new.adoc` and `CHANGELOG.md`
 
-- Check whether `docs/modules/ROOT/pages/whats-new.adoc` already exists.
+Both files describe the same release from the same underlying analysis — do the analysis once, then write it into
+each file in its own house style. Don't let them drift: same set of changes, same version, same date.
+
 - Gather what actually changed since the previous release: if a previous tag was found in Step 2, read
   `git log <previous-tag>..develop --oneline` and the actual diffs for meaningful commits (not just commit
   subjects) to understand real, user-facing changes — new detectors/APIs, behavioral changes, bug fixes. Skip
   changes that don't affect library users (e.g. repository tooling, CI, or editor/assistant configuration
   changes) unless the user would actually care. If there is no previous tag, this is the first release — write a
   short section describing the library's initial capabilities instead of a diff-based changelog.
-- Compose a new, brief section for the release version being cut (heading + short bullet list, one line per
-  change, emojis optional per this repo's existing README style — e.g. ✨ for new features, 🐛 for fixes, ♻️ for
-  behavioral changes). Insert it at the top of the page (newest first) above any existing sections — don't rewrite
-  or drop prior sections.
-- If the page doesn't exist yet, create it following this module's conventions (see `index.adoc` for the house
-  style: a `= Title` heading and, since this page's content is being drafted by this skill, the same
-  AI-assistance disclaimer note `index.adoc` already carries), and add an `xref:whats-new.adoc[]` entry to
+- **`docs/modules/ROOT/pages/whats-new.adoc`**: check whether it already exists. Compose a new, brief section for
+  the release version being cut (heading + short bullet list, one line per change, emojis optional per this
+  repo's existing README style — e.g. ✨ for new features, 🐛 for fixes, ♻️ for behavioral changes). Insert it at
+  the top of the page (newest first) above any existing sections — don't rewrite or drop prior sections. If the
+  page doesn't exist yet, create it following this module's conventions (see `index.adoc` for the house style: a
+  `= Title` heading and, since this page's content is being drafted by this skill, the same AI-assistance
+  disclaimer note `index.adoc` already carries), and add an `xref:whats-new.adoc[]` entry to
   `docs/modules/ROOT/nav.adoc`, placed right after `xref:index.adoc[]` so it's the first thing a reader sees after
   the overview.
+- **`CHANGELOG.md`** (repository root): follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — an
+  `## [Unreleased]` section always sits at the top, followed by one `## [<version>] - <YYYY-MM-DD>` section per
+  release, newest first, each with `### Added`/`### Changed`/`### Fixed`/`### Removed` subsections as applicable
+  (omit empty subsections). Rename `## [Unreleased]` to `## [<release-version>] - <today's date>` using the same
+  change list just composed for `whats-new.adoc` (same substance, terser Keep a Changelog wording — no need to
+  match sentence-for-sentence), then add a fresh empty `## [Unreleased]` section above it. Update the compare
+  links at the bottom of the file: retarget the `[Unreleased]` link to `compare/<release-version>...HEAD` and add
+  a new `[<release-version>]: compare/<previous-tag>...<release-version>` link (or `releases/tag/<release-version>`
+  if there's no previous tag). If `CHANGELOG.md` doesn't exist yet, create it with this same structure, an
+  `[Unreleased]` section, and one entry for the release being cut.
 
 ## Step 11 — Review, then commit
 
@@ -153,6 +177,6 @@ description from the actual diff, show it, and — once confirmed — update the
 ## Step 15 — Report
 
 Summarize: the release version and upcoming SNAPSHOT version chosen, the branch and PR URL, which files were
-updated, and what was written to `whats-new.adoc`. Remind the user that bumping `develop`'s `pom.xml` to the
-upcoming SNAPSHOT version is a separate follow-up this skill doesn't perform (per the note in Step 4), consistent
-with how earlier releases in this repo handled it.
+updated, and what was written to `whats-new.adoc` and `CHANGELOG.md`. Remind the user that bumping `develop`'s
+`pom.xml` to the upcoming SNAPSHOT version is a separate follow-up this skill doesn't perform (per the note in
+Step 4), consistent with how earlier releases in this repo handled it.

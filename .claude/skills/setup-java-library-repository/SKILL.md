@@ -1,15 +1,16 @@
 ---
 name: setup-java-library-repository
-description: End-to-end bootstrap for a brand-new Java/Maven library repository — collects the project's identity (groupId, artifactId, base package, developer name/email/organizationUrl, license) and pipeline parameters (integration branch, Java version, publishing server id, sign/extras profile ids, Maven settings file) once, then orchestrates `setup-java-library` (pom.xml + source folders), `antora-setup` (documentation site), and `setup-java-github-workflows` (CI/CD workflows) in that order so nothing is asked twice. Invoke as `/setup-java-library-repository`. Each parameter has the same default as the skill it feeds (`develop`, `17`, `central`, `build-extras`, `sign`, `mvnsettings.xml`) and can be overridden. Use when starting a new Java library repository from nothing and you want the full pom/docs/CI scaffold in one pass, instead of running the three skills separately and re-answering the same questions each time.
+description: End-to-end bootstrap for a brand-new Java/Maven library repository — collects the project's identity (groupId, artifactId, base package, developer name/email/organizationUrl, license) and pipeline parameters (integration branch, Java version, publishing server id, sign/extras profile ids, Maven settings file) once, then orchestrates `setup-java-library` (pom.xml + source folders), `antora-setup` (documentation site), `setup-java-github-workflows` (CI/CD workflows), `setup-changelog` (root CHANGELOG.md), and `setup-readme` (root README.md) in that order so nothing is asked twice. Invoke as `/setup-java-library-repository`. Each parameter has the same default as the skill it feeds (`develop`, `17`, `central`, `build-extras`, `sign`, `mvnsettings.xml`) and can be overridden. Use when starting a new Java library repository from nothing and you want the full pom/docs/CI/changelog/README scaffold in one pass, instead of running the skills separately and re-answering the same questions each time.
 ---
 
 # Setup Java Library Repository
 
-Bootstrap a brand-new Java/Maven library repository in one pass by orchestrating three existing skills:
+Bootstrap a brand-new Java/Maven library repository in one pass by orchestrating five existing skills:
 `setup-java-library` (writes `pom.xml` and the `src/main/java|resources`/`src/test/java` folders),
-`antora-setup` (scaffolds the Antora documentation site), and `setup-java-github-workflows` (writes
-`develop.yml`/`main.yml`). This skill does not duplicate their logic — it collects the shared parameters once and
-passes each skill only what it needs, so the user isn't asked the same question three times.
+`antora-setup` (scaffolds the Antora documentation site), `setup-java-github-workflows` (writes
+`develop.yml`/`main.yml`), `setup-changelog` (bootstraps a root `CHANGELOG.md`), and `setup-readme` (bootstraps a
+root `README.md`). This skill does not duplicate their logic — it collects the shared parameters once and passes
+each skill only what it needs, so the user isn't asked the same question repeatedly.
 
 ## Step 1 — Collect the project's identity
 
@@ -91,15 +92,42 @@ Skill({
 
 `setup-java-github-workflows` parses these itself (its own Step 1) and only surveys/asks about facts these six
 parameters don't cover (static-analysis plugins, SonarQube config, branch-model confirmation, etc.). If it reports
-that `develop.yml`/`main.yml` already existed and the user chose to stop, note that in Step 6's report rather than
+that `develop.yml`/`main.yml` already existed and the user chose to stop, note that in Step 7's report rather than
 treating it as a failure of this skill — `pom.xml` and the Antora docs from Steps 3–4 are still valid on their own.
 
-## Step 6 — Report
+## Step 6 — Run `setup-changelog`
 
-Summarize the outcome of all three delegated skills together: the resolved project identity and license, the
-pipeline parameters used, which of `pom.xml`/source folders, the Antora docs site, and the two workflow files were
-created versus left untouched (per any stop choice in Steps 3 or 5), and the required GitHub secrets
-`setup-java-github-workflows` listed. Repeat its closing warning here too: **review every generated file before
-building, committing, or relying on CI** — `mvn validate` should succeed, the license should match an actual
-`LICENSE` file if one was chosen, and the workflow's inferred branch/profile/publishing values should be double
-checked before the first real push or release.
+Invoke `Skill({skill: "setup-changelog"})` with no `args` — it takes none, working entirely from the repository's
+own git tag/GitHub Release history rather than anything collected in Steps 1–2. Run this before `setup-readme`
+(Step 7): it's independent of `pom.xml`, the Antora docs, and the workflows, so its position relative to them
+doesn't matter functionally, but for a genuinely brand-new repository (no tags yet) it's the fastest to resolve —
+it either bootstraps a minimal `## [Unreleased]`-only file or stops per the user's choice, per its own Step 2. If
+`CHANGELOG.md` already exists, it stops immediately and reports that — treat that the same way as the stop cases
+in Steps 3 and 5: not a failure of this skill, just something to note in Step 8's report. Running it before
+`setup-readme` means the README's own Documentation section (which links to `CHANGELOG.md` if present) sees it
+already in place.
+
+## Step 7 — Run `setup-readme`
+
+Invoke `Skill({skill: "setup-readme"})` with no `args` — it takes none, deriving everything it needs by exploring
+the repository directly (the `pom.xml` from Step 3, the Antora docs from Step 4, the workflows and Sonar config
+from Step 5, and `CHANGELOG.md` from Step 6). Run this last, after every other skill: `setup-readme`'s badges,
+documentation links, and project-status table are only as complete as what already exists on disk when it runs,
+so giving it the finished state of Steps 3–6 to explore produces a fuller README than running it earlier would.
+For a genuinely brand-new repository, most of the CI/Sonar/changelog-derived sections will still be sparse or
+absent at this point (no commits/tags/CI runs yet) — that's expected; `setup-readme` omits what it can't confirm
+rather than inventing it, and the README can be regenerated later once the repository has real history. Since
+`README.md` won't already exist for a brand-new repository, `setup-readme`'s own approval step (its Step 9) is
+skipped and it writes directly — nothing further to confirm here.
+
+## Step 8 — Report
+
+Summarize the outcome of all five delegated skills together: the resolved project identity and license, the
+pipeline parameters used, which of `pom.xml`/source folders, the Antora docs site, the two workflow files,
+`CHANGELOG.md`, and `README.md` were created versus left untouched (per any stop choice in Steps 3, 5, or 6), and
+the required GitHub secrets `setup-java-github-workflows` listed. Note which README sections `setup-readme`
+omitted for lack of material (expected for a brand-new repository). Repeat its closing warning here too: **review
+every generated file before building, committing, or relying on CI** — `mvn validate` should succeed, the license
+should match an actual `LICENSE` file if one was chosen, the workflow's inferred branch/profile/publishing values
+should be double checked before the first real push or release, and the README's "How It Works" example should be
+verified once real source code exists.
