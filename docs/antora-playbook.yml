@@ -24,4 +24,10 @@ antora:
       script_stem: header-scripts
       mermaid_initialize_options:
         start_on_load: true
-    - require: '@djencks/asciidoctor-mathjax'
+asciidoc:
+  attributes:
+    mathjax-tex-tags: ams
+    mathjax-tex-packages: ams
+  extensions:
+    - '@djencks/asciidoctor-mathjax'
+
