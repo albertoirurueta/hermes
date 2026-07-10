@@ -25,14 +25,14 @@ The name reflects the library's purpose: carrying precise information about what
 
 ## Project Status
 
-| Area | Status |
-| --- | --- |
-| Language | Java 17 |
-| Build tool | Maven |
-| Current development version | `1.3.0-SNAPSHOT` |
-| Latest release shown here | `1.2.0` |
-| License | Apache License 2.0 |
-| CI | GitHub Actions for release and `develop` branch builds |
+| Area | Status                                                           |
+| --- |------------------------------------------------------------------|
+| Language | Java 17                                                          |
+| Build tool | Maven                                                            |
+| Current development version | `1.4.0-SNAPSHOT`                                                 |
+| Latest release shown here | `1.3.0`                                                          |
+| License | Apache License 2.0                                               |
+| CI | GitHub Actions for release and `develop` branch builds           |
 | Quality | SonarCloud, JaCoCo, Surefire, Javadoc, Checkstyle, SpotBugs, PMD |
 
 ## Documentation
