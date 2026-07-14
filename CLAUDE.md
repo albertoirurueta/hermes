@@ -98,3 +98,6 @@ the `validate` phase in `pom.xml` (captures version, commit, branch, timestamp f
 - Use `final var` for locals throughout (see any existing class for style).
 - Every public and protected member has Javadoc, including `@param`/`@return`/`@throws`; match this when adding
   API surface, since Checkstyle and the Javadoc plugin enforce documentation in the site build.
+- Every source and test file starts with the Apache License 2.0 header (`Copyright (C) 2025 Alberto Irurueta Carro
+  (alberto@irurueta.com)`), matching the license in the project root. Copy it verbatim from an existing file for any
+  new file.
