@@ -46,6 +46,7 @@ Don't assume a clean slate. Before creating anything, check:
 - Does a `docs/` directory already exist at the repository root? If yes, is it already an Antora module (does
   `docs/antora.yml` exist)?
 - Does `docs/antora-playbook.yml` (or another playbook file referenced from `docs/package.json` scripts) exist?
+- Does `docs/ui-bundle.zip` already exist next to it?
 - Does `docs/modules/ROOT/` exist, and if so what pages does `docs/modules/ROOT/nav.adoc` already list?
 - Is `docs/package.json` already tracking `antora` and the three extensions from Step 3 as dependencies?
 
@@ -121,6 +122,10 @@ rewriting sections that already match this shape.
   that Antora needs as its content source root.
 - `content.sources[0].start_path`: literally `docs` — tells Antora the actual module content (this `antora.yml`
   and `modules/`) lives under `docs/` within that content root, not at the repository root itself.
+- `ui.bundle.url`: literally `ui-bundle.zip` — a local, relative path resolved from wherever the playbook file
+  itself lives. This skill ships its own `ui-bundle.zip` alongside this `SKILL.md`; copy that file into `docs/`
+  (next to the `antora-playbook.yml` being written) so the relative path resolves. This avoids depending on the
+  upstream GitLab CI artifact URL at build time.
 
 ```yaml
 site:
@@ -133,7 +138,7 @@ content:
       start_path: docs
 ui:
   bundle:
-    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+    url: ui-bundle.zip
     snapshot: true
   supplemental_files:
     - path: ui.yml
@@ -158,7 +163,7 @@ asciidoc:
 ```
 
 Concrete example, from this repository (`docs/antora-playbook.yml`), differs from the template above only in the
-`site` block (`title: <Name-of-repository>`, `start_page: name-of-repository::index.adoc`) — every other section is copied verbatim.
+`site` block (`title: <Name-of-repository>`, `start_page: name-of-repository::index.adoc`) — every other section is copied verbatim, including the local `ui-bundle.zip` copied into `docs/`.
 
 ## Step 6 — Create the `ROOT` module skeleton
 
@@ -275,6 +280,7 @@ Summarize, grouped by what Step 2 found already present vs. what this run create
 
 - Node.js/Antora/extensions: already present vs. newly installed.
 - `antora.yml` / `antora-playbook.yml`: already present and correct, corrected, or newly written.
+- `ui-bundle.zip`: already present at `docs/` vs. newly copied in from this skill's directory.
 - Each of the three starter pages: newly created, or already covered by an existing page under a different name
   (name it).
 - `nav.adoc` and `.gitignore`: entries added, if any.
