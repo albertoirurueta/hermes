@@ -175,7 +175,7 @@ jobs:
 
       - name: Install Antora
         run: |
-          cd docs
+          mkdir docs && cd docs
           npm i -D -E antora
           npm i @antora/lunr-extension
           npm i @sntke/antora-mermaid-extension
