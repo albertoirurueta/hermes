@@ -122,12 +122,16 @@ values the same way as Step 7. Don't touch pages that don't mention a version.
 Both files describe the same release from the same underlying analysis — do the analysis once, then write it into
 each file in its own house style. Don't let them drift: same set of changes, same version, same date.
 
-- Gather what actually changed since the previous release: if a previous tag was found in Step 2, read
-  `git log <previous-tag>..develop --oneline` and the actual diffs for meaningful commits (not just commit
-  subjects) to understand real, user-facing changes — new detectors/APIs, behavioral changes, bug fixes. Skip
-  changes that don't affect library users (e.g. repository tooling, CI, or editor/assistant configuration
-  changes) unless the user would actually care. If there is no previous tag, this is the first release — write a
-  short section describing the library's initial capabilities instead of a diff-based changelog.
+- Gather what actually changed since the previous release: if a previous tag was found in Step 2, delegate the
+  commit/diff reading to the `change-summarizer` agent rather than reading `git log`/diffs inline — the same job
+  `setup-changelog` uses it for, just for a single range here instead of a fan-out across many past releases:
+  `Agent({description: "Summarize changes since <previous-tag>", subagent_type: "change-summarizer", prompt:
+  "Summarize <previous-tag>..develop for a Keep a Changelog entry. Source directories for this repository: (the
+  library's main source, excluding repository tooling/CI/editor-assistant config). Report back only a short
+  bullet list of user-facing changes, grouped by Added/Changed/Deprecated/Removed/Fixed/Security where
+  applicable."})`. Use the returned bullet list as the basis for both files below. If there is no previous tag,
+  this is the first release — write a short section describing the library's initial capabilities instead of a
+  diff-based changelog (no agent call needed, there's no range to summarize).
 - **`docs/modules/ROOT/pages/whats-new.adoc`**: check whether it already exists. Compose a new, brief section for
   the release version being cut (heading + short bullet list, one line per change, emojis optional per this
   repo's existing README style — e.g. ✨ for new features, 🐛 for fixes, ♻️ for behavioral changes). Insert it at

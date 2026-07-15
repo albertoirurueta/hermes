@@ -140,13 +140,15 @@ Handle the choice as follows:
   branch and open a pull request back to `<base-branch>`.
 - **Proceed automatically**: implementation must run with a clean context — carrying this whole
   exploration/planning transcript into `code`'s execution would waste context and risk it anchoring on
-  intermediate exploration detail instead of the finished plan. Delegate the entire `code` run to a sub-agent
-  rather than running it inline, since a sub-agent starts from a fresh context by construction and — unlike
-  clearing this conversation directly — lets this skill keep running afterward to open the PR in Step 7:
+  intermediate exploration detail instead of the finished plan. Delegate the entire `code` run to the
+  `isolated-skill-executor` agent rather than running it inline, since it starts from a fresh context by
+  construction and — unlike clearing this conversation directly — lets this skill keep running afterward to open
+  the PR in Step 7:
 
   ```
   Agent({
     description: "Implement ticket <ticket-id> via the code skill",
+    subagent_type: "isolated-skill-executor",
     prompt: "Invoke Skill({skill: \"code\"}) to execute implementation_plan.md at the repository root end to end.
       Report back: which tasks completed, the files touched, the coverage and code-quality outcome, whether the
       plan was archived, and — critically — whether `code`'s Step 7 security gate (backed by `check-security`)

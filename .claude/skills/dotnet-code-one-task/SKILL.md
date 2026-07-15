@@ -17,13 +17,13 @@ It is the .NET/C# counterpart to `java-code-one-task` — same shape, but built 
 
 Read the actual current content of the file(s) the task touches before editing — don't assume any "current code
 state" notes passed in with the task are still accurate; other tasks may have just completed, or the file may
-have changed for unrelated reasons. Also capture this task's pre-change quality baseline by delegating to a
-sub-agent, once per touched type: `Agent({description: "Capture pre-change quality baseline for <TypeName>",
-prompt: "Invoke Skill({skill: \"dotnet-code-quality\", args: \"<TypeName>\"}), then report back only the list of
-issues found for this type — not the raw generated SARIF report."})`. Running this in a sub-agent and having it
-return just the issue list (not the full StyleCop/CA report) keeps unneeded report content out of the main
-context window. Record the returned issues as this task's pre-change baseline — an empty baseline if the file is
-new. This is what the quality check in Step 9 compares against, so it flags only issues this task introduces, not
+have changed for unrelated reasons. Also capture this task's pre-change quality baseline by delegating to the
+`gate-runner` agent, once per touched type: `Agent({description: "Capture pre-change quality baseline for
+<TypeName>", subagent_type: "gate-runner", prompt: "Invoke Skill({skill: \"dotnet-code-quality\", args:
+\"<TypeName>\"}), then report back only the list of issues found for this type."})`. `gate-runner` runs in its own
+separate context and reports back just the issue list (not the full StyleCop/CA SARIF report), keeping unneeded
+report content out of the main context window. Record the returned issues as this task's pre-change baseline — an
+empty baseline if the file is new. This is what the quality check in Step 9 compares against, so it flags only issues this task introduces, not
 pre-existing ones. Skip the baseline capture (but not the code-state re-check) if the `dotnet-code-quality` skill
 is unavailable in this repository.
 
@@ -44,38 +44,39 @@ including edge cases implied by the XML doc `<exception>` contracts (e.g. null/i
 
 ## Step 4 — Add license headers
 
-To the file(s) this task added or modified, by delegating to a sub-agent rather than running `check-license`
-directly: `Agent({description: "Add license headers for <TypeName>", prompt: "Invoke Skill({skill:
-\"check-license\", args: \"<file1,file2,...>\"}) scoped to the file(s) this task added or modified. Report back
-only which files were missing a header vs. fixed vs. already compliant, and — if no header convention existed
-anywhere in the repo — whether the user chose to skip or generate one, and what was ultimately accepted. Not the
-full audit output."})`. Running this in a sub-agent's separate context keeps the audit details out of the main
-context window since only the outcome matters here. If the sub-agent reports the user chose to skip header
+To the file(s) this task added or modified, by delegating to the `gate-runner` agent rather than running
+`check-license` directly: `Agent({description: "Add license headers for <TypeName>", subagent_type:
+"gate-runner", prompt: "Invoke Skill({skill: \"check-license\", args: \"<file1,file2,...>\"}) scoped to the
+file(s) this task added or modified. Report back only which files were missing a header vs. fixed vs. already
+compliant, and — if no header convention existed anywhere in the repo — whether the user chose to skip or
+generate one, and what was ultimately accepted."})`. Running this via `gate-runner` keeps the audit details out of
+the main context window since only the outcome matters here. If the sub-agent reports the user chose to skip
+header
 generation, respect that choice and say so in your Step 11 summary so the caller can carry it forward to later
 tasks. If the `check-license` skill is unavailable in this repository, skip this item.
 
 ## Step 5 — Update XML doc comments
 
-For the file(s) this task added or modified, by delegating to a sub-agent rather than running `dotnet-docfx`
-directly: `Agent({description: "Update XML doc comments for <TypeName>", prompt: "Invoke Skill({skill:
-\"dotnet-docfx\", args: \"<TypeName1,TypeName2,...>\"}) scoped to the type(s) this task added or modified. Report
-back only whether doc comments were added/updated and for which members, and whether the DocFX build verification
-passed (or was skipped because `docfx` isn't installed) — not the full audit output."})`. Running this in a
-sub-agent's separate context keeps the audit details out of the main context window since only the outcome
+For the file(s) this task added or modified, by delegating to the `gate-runner` agent rather than running
+`dotnet-docfx` directly: `Agent({description: "Update XML doc comments for <TypeName>", subagent_type:
+"gate-runner", prompt: "Invoke Skill({skill: \"dotnet-docfx\", args: \"<TypeName1,TypeName2,...>\"}) scoped to the
+type(s) this task added or modified. Report back only whether doc comments were added/updated and for which
+members, and whether the DocFX build verification passed (or was skipped because `docfx` isn't installed)."})`.
+Running this via `gate-runner` keeps the audit details out of the main context window since only the outcome
 matters here. If the sub-agent reports the DocFX build failed, fix the reported issues and re-invoke until it
 reports success or a clean "not installed" skip. If the `dotnet-docfx` skill is unavailable in this repository,
 skip this item.
 
 ## Step 6 — Run the scoped tests
 
-For the affected type(s) by delegating to a sub-agent rather than running `dotnet-test` directly:
-`Agent({description: "Run tests for <TestClass>", prompt: "Invoke Skill({skill: \"dotnet-test\", args:
-\"<TestClass>\"}) (or a filter expression per that skill's Step 1 selector table if several classes are affected;
-fall back to `dotnet test --filter \"FullyQualifiedName~<TestClass>\"` directly if the dotnet-test skill is
-unavailable). If everything passes, report back only that all tests passed. If anything fails, report back only
-the failing test names, the failure reason, and the stack trace for each — not the full test-run output."})`.
-Running this in a sub-agent's separate context keeps unneeded passing-test output out of the main context window.
-If the sub-agent reports failures, fix the implementation and/or tests based on the reported names/reasons/stack
+For the affected type(s) by delegating to the `gate-runner` agent rather than running `dotnet-test` directly:
+`Agent({description: "Run tests for <TestClass>", subagent_type: "gate-runner", prompt: "Invoke Skill({skill:
+\"dotnet-test\", args: \"<TestClass>\"}) (or a filter expression per that skill's Step 1 selector table if several
+classes are affected; fall back to `dotnet test --filter \"FullyQualifiedName~<TestClass>\"` directly if the
+dotnet-test skill is unavailable). If everything passes, report back only that all tests passed. If anything
+fails, report back only the failing test names, the failure reason, and the stack trace for each."})`. Running
+this via `gate-runner` keeps unneeded passing-test output out of the main context window. If the sub-agent reports
+failures, fix the implementation and/or tests based on the reported names/reasons/stack
 traces, then re-invoke the same sub-agent pattern — repeat until it reports all tests passed. Don't move on with a
 red test. If a failure persists after a genuine fix attempt and suggests the task's described approach is
 actually wrong or infeasible against the real code, stop here and follow Step 10 instead of continuing to force
@@ -83,37 +84,37 @@ it.
 
 ## Step 7 — Check coverage
 
-For the changed/new classes is at least 80% line coverage, by delegating to a sub-agent rather than running
-`dotnet-coverage` directly: `Agent({description: "Check coverage for <TestClass>", prompt: "Invoke Skill({skill:
-\"dotnet-coverage\", args: \"<TestClass>\"}) (or a filter expression per that skill's Step 1, plus explicit target
-class names, if several classes are involved; fall back to `dotnet test --filter
-\"FullyQualifiedName~<TestClass>\" --collect:\"XPlat Code Coverage\"` directly and reading
+For the changed/new classes is at least 80% line coverage, by delegating to the `gate-runner` agent rather than
+running `dotnet-coverage` directly: `Agent({description: "Check coverage for <TestClass>", subagent_type:
+"gate-runner", prompt: "Invoke Skill({skill: \"dotnet-coverage\", args: \"<TestClass>\"}) (or a filter expression
+per that skill's Step 1, plus explicit target class names, if several classes are involved; fall back to `dotnet
+test --filter \"FullyQualifiedName~<TestClass>\" --collect:\"XPlat Code Coverage\"` directly and reading
 `coverage.cobertura.xml` if the dotnet-coverage skill is unavailable). Report back, for each target class only,
-its line coverage percentage and branch coverage percentage — not the full report or which specific lines/
-branches are covered or uncovered."})`. Running this in a sub-agent's separate context keeps the detailed
-per-line/per-branch report data out of the main context window since only the percentages are needed here. Check
+its line coverage percentage and branch coverage percentage."})`. Running this via `gate-runner` keeps the
+detailed per-line/per-branch report data out of the main context window since only the percentages are needed
+here. Check
 the actual reported percentage, don't estimate it. If under 80%, add tests for the uncovered branches/lines
 (re-invoking the sub-agent from Step 6, and this one without a sub-agent, to confirm) and re-check.
 
 ## Step 8 — Run the full suite
 
 Before reporting this task done, to catch regressions in other classes this task's change may have affected, by
-delegating to a sub-agent for the same reason as Step 6: `Agent({description: "Run full test suite", prompt: "Run
-`dotnet test`. If everything passes, report back only that all tests passed. If anything fails, report back only
-the failing test names, the failure reason, and the stack trace for each — not the full test-run output."})`.
-Running this in a sub-agent's separate context keeps unneeded passing-test output out of the main context window.
-If the sub-agent reports failures, fix the regression, then re-invoke the same sub-agent pattern — repeat until it
-reports all tests passed.
+delegating to the `gate-runner` agent for the same reason as Step 6: `Agent({description: "Run full test suite",
+subagent_type: "gate-runner", prompt: "Run `dotnet test`. If everything passes, report back only that all tests
+passed. If anything fails, report back only the failing test names, the failure reason, and the stack trace for
+each."})`. Running this via `gate-runner` keeps unneeded passing-test output out of the main context window. If
+the sub-agent reports failures, fix the regression, then re-invoke the same agent call — repeat until it reports
+all tests passed.
 
 ## Step 9 — Check code quality for the touched file(s)
 
-Scoped the same way as Step 1, by delegating to a sub-agent for the same reason as before:
-`Agent({description: "Check for new quality issues in <TypeName>", prompt: "Invoke Skill({skill:
-\"dotnet-code-quality\", args: \"<TypeName>\"}). Compare the reported issues against this pre-change baseline:
-<baseline from Step 1>. Report back only the issues that are newly appearing (not present in the baseline) — not
-the full reports and not issues that were already present."})`. Running this in a sub-agent's separate context,
-and having it do the diffing itself, keeps the full reports and already-known pre-existing issues out of the main
-context window since only newly introduced issues matter here. Any issue reported back is a regression this task
+Scoped the same way as Step 1, by delegating to the `gate-runner` agent for the same reason as before:
+`Agent({description: "Check for new quality issues in <TypeName>", subagent_type: "gate-runner", prompt: "Invoke
+Skill({skill: \"dotnet-code-quality\", args: \"<TypeName>\"}). Compare the reported issues against this
+pre-change baseline: <baseline from Step 1>. Report back only the issues that are newly appearing (not present in
+the baseline)."})`. Running this via `gate-runner`, and having it do the diffing itself, keeps the full reports
+and already-known pre-existing issues out of the main context window since only newly introduced issues matter
+here. Any issue reported back is a regression this task
 introduced — fix it (then re-run Steps 6–8 to confirm the fix didn't break tests or coverage) and re-check until
 none remain. Leave a new issue in place only if fixing it is genuinely unavoidable (e.g. it would contradict what
 the task explicitly specifies) — in that case say so, and why, in your Step 11 summary rather than silently

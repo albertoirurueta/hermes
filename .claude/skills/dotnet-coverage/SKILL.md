@@ -53,7 +53,22 @@ Notes:
 ## Step 4 — Read the exact coverage from `coverage.cobertura.xml`
 
 Find the generated file (`find ./TestResults -name coverage.cobertura.xml`, since it's nested under a run-guid
-folder) and read it. Its structure is:
+folder). For a small, known number of target classes from Step 2 (the common case — including a plain "are we
+above N%?" check), extract just their `<class>...</class>` block(s) instead of reading the whole file — this
+report carries full per-line `hits` data for every class in the run, which can be large on a solution with many
+classes:
+
+```bash
+awk '/<class name="<FullyQualifiedName>"/,/<\/class>/' <path-to-coverage.cobertura.xml>
+```
+
+If a target class is split across multiple `<class>` entries (partial classes), this range pattern naturally
+picks up each occurrence separately — sum the underlying `<line>` counts across all of them (see below). If Step
+2 couldn't narrow down to specific class names (a wildcard/namespace-pattern/full-suite run touching many
+classes), read the whole file instead — composing this extraction for many classes isn't worth it once there are
+more than a handful.
+
+Its overall structure is:
 
 ```xml
 <coverage line-rate="..." branch-rate="...">

@@ -27,8 +27,9 @@ report.
 ## Step 1 — Survey the target repository
 
 This skill can be invoked stand-alone (`/setup-java-github-workflows`) or as a step inside another skill, such as
-`setup-java-library-repository`, which resolves the six pipeline parameters below itself and passes them through
-`args` as `key: value` lines, one per line, e.g.:
+`setup-java-library-repository`, which resolves the six pipeline parameters below itself (plus, since it
+collects them anyway in its own Step 1, `groupId`/`artifactId`) and passes them through `args` as `key: value`
+lines, one per line, e.g.:
 
 ```
 integration-branch: develop
@@ -37,18 +38,23 @@ publishing-server-id: central
 extras-profile-id: build-extras
 sign-profile-id: sign
 settings-file: mvnsettings.xml
+group-id: com.example
+artifact-id: my-library
 ```
 
 Parse any such lines from `args` first. For each of `integration-branch`, `java-version`,
-`publishing-server-id`, `extras-profile-id`, `sign-profile-id`, and `settings-file` found there, use that value
-directly — skip the corresponding fact-finding bullet below entirely for it, since it's already resolved. If
-`args` is absent or doesn't look like this format, treat everything as unset and gather every fact below as usual.
+`publishing-server-id`, `extras-profile-id`, `sign-profile-id`, `settings-file`, `group-id`, and `artifact-id`
+found there, use that value directly — skip the corresponding fact-finding bullet below entirely for it, since
+it's already resolved (and, for `group-id`/`artifact-id`, skips re-reading them from `pom.xml`). If `args` is
+absent or doesn't look like this format, treat everything as unset and gather every fact below as usual.
 
 Gather the remaining facts before writing anything; every placeholder in Step 3's templates must be resolved from
 a real answer, not guessed. If `pom.xml` is missing and the user chose to continue anyway, skip the
 `pom.xml`-derived facts below and ask the user for equivalent values directly instead:
 
-- **Maven coordinates**: read `groupId`/`artifactId`/`version` from `pom.xml`.
+- **Maven coordinates** (skip `groupId`/`artifactId` if supplied via `args`): read whichever of
+  `groupId`/`artifactId`/`version` weren't already supplied from `pom.xml` — `version` is always read here, since
+  it isn't known yet at the point `setup-java-library-repository` collects its own Step 1 fields.
 - **Java version** (skip if supplied via `args`): read `maven.compiler.source`/`maven.compiler.target` (or
   `maven.compiler.release`) from `pom.xml` properties.
 - **Central/Nexus publishing plugin** (skip the `publishing-server-id` half if supplied via `args`): grep
@@ -84,14 +90,17 @@ a real answer, not guessed. If `pom.xml` is missing and the user chose to contin
   `sync.yml` (Step 3): the stable branch is what it checks the release was published from, the integration branch
   is where its pull request lands.
 - **README/Antora version-snippet wording** (only needed for `sync.yml`'s companion script,
-  `sync_versions.py`): read `README.md`'s project-status table and installation snippet, and any Antora page
-  matched by `grep -rl "<version>" docs/modules/ROOT/pages/*.adoc`, to find the exact row label used for the
-  development-snapshot row (e.g. `Current development version`) and the exact marker text preceding each
-  `<version>` tag (e.g. `Latest release`/`Latest snapshot`, possibly with a trailing qualifier like `Latest
-  release shown here`). `sync_versions.py`'s regexes must match this repository's actual wording, not just the
-  `setup-readme` skill's default convention — note any deviation now so Step 4 can adjust the template correctly.
-  If `README.md` doesn't exist yet, or was not produced by the `setup-readme` skill, tell the user
-  `sync_versions.py`'s README step will need hand-adjustment once the file exists.
+  `sync_versions.py`): rather than reading `README.md` and every matched Antora page in full, grep for just the
+  marker text and its surrounding lines — `grep -B2 -A2 -i "current development version\|latest release\|latest
+  snapshot" README.md`, and for Antora pages, `grep -rl "<version>" docs/modules/ROOT/pages/*.adoc` to find which
+  pages mention a version at all, then `grep -B2 -A2 "<version>" <matched-page>` on each one found. From that
+  context, find the exact row label used for the development-snapshot row (e.g. `Current development version`)
+  and the exact marker text preceding each `<version>` tag (e.g. `Latest release`/`Latest snapshot`, possibly with
+  a trailing qualifier like `Latest release shown here`). `sync_versions.py`'s regexes must match this
+  repository's actual wording, not just the `setup-readme` skill's default convention — note any deviation now so
+  Step 4 can adjust the template correctly. If `README.md` doesn't exist yet, or was not produced by the
+  `setup-readme` skill, tell the user `sync_versions.py`'s README step will need hand-adjustment once the file
+  exists.
 
 ## Step 2 — Decide how to proceed if workflows already exist
 

@@ -188,11 +188,14 @@ different name instead.
 
 ## Step 7 — Write `index.adoc` (repository overview)
 
-Explore the codebase before writing this page — read the README, top-level source layout, and the main
-public entry points/classes/exports, the same way you would when writing documentation from scratch. This page
-should give a newcomer: what the project is, why it exists, the core concept(s) it's built around, and a pointer
-to the other two starter pages. Use a Mermaid diagram (`[mermaid]` block) if a flow or architecture is genuinely
-clearer as a diagram, and a MathJax equation (`\( ... \)` / `\[ ... \]`) only if the project's core logic involves
+Explore the codebase before writing this page. Read the README in full — it's usually compact and central to
+what this page needs. For the top-level source layout and main public entry points/classes/exports, don't read
+every file directly: use the `Explore` agent (the same one the `explore` skill uses for this exact kind of broad
+structural search) to build a picture of module layout and the small number of top-level public types/exports a
+newcomer would actually care about, and read only those specific files directly once identified. This page should
+give a newcomer: what the project is, why it exists, the core concept(s) it's built around, and a pointer to the
+other two starter pages. Use a Mermaid diagram (`[mermaid]` block) if a flow or architecture is genuinely clearer
+as a diagram, and a MathJax equation (`\( ... \)` / `\[ ... \]`) only if the project's core logic involves
 something worth stating precisely as math — most projects won't need one, don't force it.
 
 Every generated page from this skill (`index.adoc`, `installation.adoc`, `reference.adoc`) must carry this exact

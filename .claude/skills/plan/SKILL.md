@@ -107,12 +107,13 @@ work the user cares about, check with the user before overwriting it). Structure
      concrete implementation that uses it; add the implementation before the tests that exercise it).
    - Call out verification steps explicitly where this repository's conventions require them (e.g. "update
      the docs", "run the linter/static-analysis profile"). For running the tests touched by a task, call out
-     delegating to a sub-agent in a separate context (e.g. `Agent({description: "Run tests for <selector>",
-     prompt: "Invoke Skill({skill: \"<test-skill>\", args: \"<selector>\"}) ..."})`) rather than running the
-     test-running skill or command directly in the main conversation, so test output doesn't consume the main
-     context window. Scope it to the relevant test(s) using a repository-specific test-running skill if one is
-     available in this repository; otherwise have the sub-agent run the equivalent test-runner command for this
-     repository's language/build tool directly.
+     delegating to the `gate-runner` agent (e.g. `Agent({description: "Run tests for <selector>", subagent_type:
+     "gate-runner", prompt: "Invoke Skill({skill: \"<test-skill>\", args: \"<selector>\"}) ..."})`, if
+     `gate-runner` is installed in this repository's `.claude/agents/` — otherwise the equivalent generic
+     sub-agent delegation) rather than running the test-running skill or command directly in the main
+     conversation, so test output doesn't consume the main context window. Scope it to the relevant test(s) using
+     a repository-specific test-running skill if one is available in this repository; otherwise have the
+     sub-agent run the equivalent test-runner command for this repository's language/build tool directly.
    - Give every task and every sub-task an empty markdown checkbox placeholder, e.g. `1. [ ] **Some task**` for a 
      top-level task and `- [ ] Some subtask` for a sub-task nested under it. The `code` skill checks these off as it 
      completes each one, so every task/sub-task line needs its own `[ ]` — don't share one checkbox across several 

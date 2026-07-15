@@ -60,9 +60,12 @@ predecessor `P` (or the repository's first commit, if `T` is the oldest tag):
 - For the **oldest** tag with no predecessor, treat everything up to it as the initial release: summarize the
   project's capabilities at that point rather than walking individual early commits one by one.
 - If the repository has a long tag history (a few dozen releases or more), this step can get context-heavy.
-  Consider dispatching one subagent per release (or small batch of releases) via the `Agent` tool, each given the
-  tag range and asked to return a short bullet list of user-facing changes, and collect the results here rather
-  than reading every diff inline yourself.
+  Dispatch one `change-summarizer` agent per release (or small batch of releases) instead of reading every diff
+  inline yourself: `Agent({description: "Summarize changes for <tag-range>", subagent_type: "change-summarizer",
+  prompt: "Summarize <predecessor>..<tag> for a Keep a Changelog entry. Source directories for this repository:
+  <source-dirs>. Report back only a short bullet list of user-facing changes, grouped by
+  Added/Changed/Deprecated/Removed/Fixed/Security where applicable."})`. Collect each returned bullet list here,
+  keyed by tag, rather than reading every diff inline yourself.
 
 ## Step 4 — Compose each release's entries
 

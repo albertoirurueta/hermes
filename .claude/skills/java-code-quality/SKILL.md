@@ -27,12 +27,33 @@ mvn clean compile checkstyle:checkstyle pmd:pmd spotbugs:spotbugs
 If the build fails outright (e.g. a compile error), report that and stop — the reports below won't have been
 freshly (re)generated, so don't read stale copies from an earlier run.
 
-## Step 2 — Read each generated report
+## Step 2 — Read each generated report, scoped to the request if given
 
-Three XML reports land under `target/`, one per tool. Read them directly — console output only shows progress,
-not the full issue list.
+Three XML reports land under `target/`, one per tool. Console output only shows progress, not the full issue
+list, so these need to be read directly — but the Maven run in Step 1 always analyzed the whole project
+regardless of scope (none of these plugins expose a per-file CLI selector like Surefire's `-Dtest`), so a scoped
+invocation should extract just the matching entries rather than reading each full report and filtering
+afterward — these reports can get large on a project with many files/issues.
 
-**Checkstyle — `target/checkstyle-result.xml`**
+**With no argument** (project-wide): read each of the three files in full.
+
+**With a specific file/class name**: extract only the matching block(s) instead of reading the whole file:
+
+- **Checkstyle** (`target/checkstyle-result.xml`) and **PMD** (`target/pmd.xml`) both wrap each file's issues in
+  a `<file name="...">...</file>` block — extract just the matching block(s):
+  `awk '/<file name="[^"]*\/<Name>\.java"/,/<\/file>/' target/checkstyle-result.xml` (same for `pmd.xml`).
+- **SpotBugs** (`target/spotbugsXml.xml`) doesn't group issues by file the same way — grep for the class name
+  with enough surrounding context to capture the whole `<BugInstance>` block it belongs to:
+  `grep -B 8 -A 4 'classname="[^"]*\.<Name>"' target/spotbugsXml.xml` (widen the context window if a match looks
+  cut off; a `<BugInstance>` rarely runs past a dozen lines). Infer the base package from any matching entry
+  rather than assuming one, and also match a nested class (e.g. `Foo$Inner` when `<Name>` is `Foo`).
+
+An empty extraction for a tool means that tool found nothing for this file/class, not that the report is
+missing — only fall back to reading the whole file if the extraction itself looks wrong (e.g. no `<file>`/
+`classname` entry anywhere matches the expected pattern at all, suggesting a naming mismatch rather than a clean
+result).
+
+**Checkstyle** entries look like:
 ```xml
 <file name="/abs/path/Foo.java">
   <error line="28" column="12" severity="error" message="..." source="com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck"/>
@@ -41,7 +62,7 @@ not the full issue list.
 A `<file>` with no `<error>` children is clean. The rule name is the last segment of `source` (e.g.
 `LineLengthCheck`).
 
-**PMD — `target/pmd.xml`**
+**PMD** entries look like:
 ```xml
 <file name="/abs/path/Foo.java">
   <violation beginline="130" endline="130" rule="UnnecessaryModifier" ruleset="Code Style"
@@ -53,7 +74,7 @@ A `<file>` with no `<error>` children is clean. The rule name is the last segmen
 `priority` is PMD's own 1 (highest) to 5 (lowest) scale; the pom doesn't set `<minimumPriority>`, so all five
 levels are reported.
 
-**SpotBugs — `target/spotbugsXml.xml`**
+**SpotBugs** entries look like:
 ```xml
 <BugInstance category="BAD_PRACTICE" priority="2" type="CT_CONSTRUCTOR_THROW">
   <ShortMessage>...</ShortMessage>
@@ -67,16 +88,7 @@ levels are reported.
 list secondary classes/methods/fields in addition to the primary one; report against the primary `<Class>`'s
 `<SourceLine>` for file/line.
 
-## Step 3 — Scope to the user's request, if given
-
-With no argument, summarize every issue across all three reports. If invoked with a specific file/class name,
-filter each report's entries to matches: Checkstyle/PMD `<file name>` ending in `/<Name>.java`, SpotBugs
-`<Class classname>` equal to `<Name>`, ending in `.<Name>`, or nested under it (e.g. `Foo$Inner` when `<Name>` is
-`Foo`) — infer the base package from any matching entry already in the report rather than assuming one. The
-Maven run in Step 1 still analyzed the whole project regardless — none of these plugins expose a per-file CLI
-selector like Surefire's `-Dtest`.
-
-## Step 4 — Report
+## Step 3 — Report
 
 Group findings by tool, then by file. For each issue, give file:line, the rule/check name, and the message.
 State a total count per tool at the top and an overall total; if a tool found zero issues (in the requested

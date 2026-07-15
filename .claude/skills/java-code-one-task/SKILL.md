@@ -15,13 +15,13 @@ calls once per top-level task in `implementation_plan.md`; it never touches that
 
 Read the actual current content of the file(s) the task touches before editing — don't assume any "current code
 state" notes passed in with the task are still accurate; other tasks may have just completed, or the file may
-have changed for unrelated reasons. Also capture this task's pre-change quality baseline by delegating to a
-sub-agent, once per touched class: `Agent({description: "Capture pre-change quality baseline for <ClassName>",
-prompt: "Invoke Skill({skill: \"java-code-quality\", args: \"<ClassName>\"}), then report back only the list of
-issues found for this class — not the raw generated reports."})`. Running this in a sub-agent and having it
-return just the issue list (not the full Checkstyle/PMD/SpotBugs reports) keeps unneeded report content out of
-the main context window. Record the returned issues as this task's pre-change baseline — an empty baseline if
-the file is new. This is what the quality check in Step 9 compares against, so it flags only issues this task
+have changed for unrelated reasons. Also capture this task's pre-change quality baseline by delegating to the
+`gate-runner` agent, once per touched class: `Agent({description: "Capture pre-change quality baseline for
+<ClassName>", subagent_type: "gate-runner", prompt: "Invoke Skill({skill: \"java-code-quality\", args:
+\"<ClassName>\"}), then report back only the list of issues found for this class."})`. `gate-runner` runs in its
+own separate context and reports back just the issue list (not the full Checkstyle/PMD/SpotBugs reports),
+keeping unneeded report content out of the main context window. Record the returned issues as this task's
+pre-change baseline — an empty baseline if the file is new. This is what the quality check in Step 9 compares against, so it flags only issues this task
 introduces, not pre-existing ones. Skip the baseline capture (but not the code-state re-check) if the
 `java-code-quality` skill is unavailable in this repository.
 
@@ -41,35 +41,36 @@ cases).
 
 ## Step 4 — Add license headers
 
-To the file(s) this task added or modified, by delegating to a sub-agent rather than running `check-license`
-directly: `Agent({description: "Add license headers for <ClassName>", prompt: "Invoke Skill({skill:
-\"check-license\", args: \"<file1,file2,...>\"}) scoped to the file(s) this task added or modified. Report back
-only which files were missing a header vs. fixed vs. already compliant, and — if no header convention existed
-anywhere in the repo — whether the user chose to skip or generate one, and what was ultimately accepted. Not the
-full audit output."})`. Running this in a sub-agent's separate context keeps the audit details out of the main
-context window since only the outcome matters here. If the sub-agent reports the user chose to skip header
+To the file(s) this task added or modified, by delegating to the `gate-runner` agent rather than running
+`check-license` directly: `Agent({description: "Add license headers for <ClassName>", subagent_type:
+"gate-runner", prompt: "Invoke Skill({skill: \"check-license\", args: \"<file1,file2,...>\"}) scoped to the
+file(s) this task added or modified. Report back only which files were missing a header vs. fixed vs. already
+compliant, and — if no header convention existed anywhere in the repo — whether the user chose to skip or
+generate one, and what was ultimately accepted."})`. Running this via `gate-runner` keeps the audit details out of
+the main context window since only the outcome matters here. If the sub-agent reports the user chose to skip
+header
 generation, respect that choice and say so in your Step 11 summary so the caller can carry it forward to later
 tasks. If the `check-license` skill is unavailable in this repository, skip this item.
 
 ## Step 5 — Update Javadoc
 
-For the file(s) this task added or modified, by delegating to a sub-agent rather than running `java-javadoc`
-directly: `Agent({description: "Update Javadoc for <ClassName>", prompt: "Invoke Skill({skill: \"java-javadoc\",
-args: \"<ClassName1,ClassName2,...>\"}) scoped to the class(es) this task added or modified. Report back only
-whether Javadoc was added/updated and for which members, and whether the Javadoc build verification passed — not
-the full audit output."})`. Running this in a sub-agent's separate context keeps the audit details out of the
-main context window since only the outcome matters here. If the sub-agent reports the Javadoc build failed, fix
+For the file(s) this task added or modified, by delegating to the `gate-runner` agent rather than running
+`java-javadoc` directly: `Agent({description: "Update Javadoc for <ClassName>", subagent_type: "gate-runner",
+prompt: "Invoke Skill({skill: \"java-javadoc\", args: \"<ClassName1,ClassName2,...>\"}) scoped to the class(es)
+this task added or modified. Report back only whether Javadoc was added/updated and for which members, and
+whether the Javadoc build verification passed."})`. Running this via `gate-runner` keeps the audit details out of
+the main context window since only the outcome matters here. If the sub-agent reports the Javadoc build failed, fix
 the reported issues and re-invoke until it reports success.
 
 ## Step 6 — Run the scoped tests
 
-For the affected class(es) by delegating to a sub-agent rather than running `java-test` directly:
-`Agent({description: "Run tests for <TestClass>", prompt: "Invoke Skill({skill: \"java-test\", args:
-\"<TestClass>\"}) (or a comma/wildcard selector per that skill's Step 1 if several classes are affected; fall
-back to `mvn test -Dtest=<TestClass>` directly if the java-test skill is unavailable). If everything passes,
-report back only that all tests passed. If anything fails, report back only the failing test names, the failure
-reason, and the stack trace for each — not the full Surefire output."})`. Running this in a sub-agent's separate
-context keeps unneeded passing-test output out of the main context window. If the sub-agent reports failures, fix
+For the affected class(es) by delegating to the `gate-runner` agent rather than running `java-test` directly:
+`Agent({description: "Run tests for <TestClass>", subagent_type: "gate-runner", prompt: "Invoke Skill({skill:
+\"java-test\", args: \"<TestClass>\"}) (or a comma/wildcard selector per that skill's Step 1 if several classes
+are affected; fall back to `mvn test -Dtest=<TestClass>` directly if the java-test skill is unavailable). If
+everything passes, report back only that all tests passed. If anything fails, report back only the failing test
+names, the failure reason, and the stack trace for each."})`. Running this via `gate-runner` keeps unneeded
+passing-test output out of the main context window. If the sub-agent reports failures, fix
 the implementation and/or tests based on the reported names/reasons/stack traces, then re-invoke the same
 sub-agent pattern — repeat until it reports all tests passed. Don't move on with a red test. If a failure
 persists after a genuine fix attempt and suggests the task's described approach is actually wrong or infeasible
@@ -77,37 +78,36 @@ against the real code, stop here and follow Step 10 instead of continuing to for
 
 ## Step 7 — Check coverage
 
-For the changed/new classes is at least 80% line coverage, by delegating to a sub-agent rather than running
-`java-coverage` directly: `Agent({description: "Check coverage for <TestClass>", prompt: "Invoke Skill({skill:
-\"java-coverage\", args: \"<TestClass>\"}) (or a comma/wildcard selector per that skill's Step 1, plus explicit
-target class names, if several classes are involved; fall back to `mvn clean jacoco:prepare-agent test
-jacoco:report -Dtest=<TestClass>` directly and reading `target/site/jacoco/jacoco.csv` if the java-coverage skill
-is unavailable). Report back, for each target class only, its line coverage percentage and branch coverage
-percentage — not the full report or which specific lines/branches are covered or uncovered."})`. Running this in
-a sub-agent's separate context keeps the detailed per-line/per-branch report data out of the main context window
-since only the percentages are needed here. Check the actual reported percentage, don't estimate it. If under
+For the changed/new classes is at least 80% line coverage, by delegating to the `gate-runner` agent rather than
+running `java-coverage` directly: `Agent({description: "Check coverage for <TestClass>", subagent_type:
+"gate-runner", prompt: "Invoke Skill({skill: \"java-coverage\", args: \"<TestClass>\"}) (or a comma/wildcard
+selector per that skill's Step 1, plus explicit target class names, if several classes are involved; fall back to
+`mvn clean jacoco:prepare-agent test jacoco:report -Dtest=<TestClass>` directly and reading
+`target/site/jacoco/jacoco.csv` if the java-coverage skill is unavailable). Report back, for each target class
+only, its line coverage percentage and branch coverage percentage."})`. Running this via `gate-runner` keeps the
+detailed per-line/per-branch report data out of the main context window since only the percentages are needed
+here. Check the actual reported percentage, don't estimate it. If under
 80%, add tests for the uncovered branches/lines (re-invoking the sub-agent from Step 6, and this one without a
 sub-agent, to confirm) and re-check.
 
 ## Step 8 — Run the full suite
 
 Before reporting this task done, to catch regressions in other classes this task's change may have affected, by
-delegating to a sub-agent for the same reason as Step 6: `Agent({description: "Run full test suite", prompt: "Run
-`mvn clean test`. If everything passes, report back only that all tests passed. If anything fails, report back
-only the failing test names, the failure reason, and the stack trace for each — not the full Surefire
-output."})`. Running this in a sub-agent's separate context keeps unneeded passing-test output out of the main
-context window. If the sub-agent reports failures, fix the regression, then re-invoke the same sub-agent pattern
-— repeat until it reports all tests passed.
+delegating to the `gate-runner` agent for the same reason as Step 6: `Agent({description: "Run full test suite",
+subagent_type: "gate-runner", prompt: "Run `mvn clean test`. If everything passes, report back only that all
+tests passed. If anything fails, report back only the failing test names, the failure reason, and the stack trace
+for each."})`. Running this via `gate-runner` keeps unneeded passing-test output out of the main context window.
+If the sub-agent reports failures, fix the regression, then re-invoke the same agent call — repeat until it
+reports all tests passed.
 
 ## Step 9 — Check code quality for the touched file(s)
 
-Scoped the same way as Step 1, by delegating to a sub-agent for the same reason as before:
-`Agent({description: "Check for new quality issues in <ClassName>", prompt: "Invoke Skill({skill:
-\"java-code-quality\", args: \"<ClassName>\"}). Compare the reported issues against this pre-change baseline:
-<baseline from Step 1>. Report back only the issues that are newly appearing (not present in the baseline) — not
-the full reports and not issues that were already present."})`. Running this in a sub-agent's separate context,
-and having it do the diffing itself, keeps the full reports and already-known pre-existing issues out of the
-main context window since only newly introduced issues matter here. Any issue reported back is a regression this
+Scoped the same way as Step 1, by delegating to the `gate-runner` agent for the same reason as before:
+`Agent({description: "Check for new quality issues in <ClassName>", subagent_type: "gate-runner", prompt: "Invoke
+Skill({skill: \"java-code-quality\", args: \"<ClassName>\"}). Compare the reported issues against this pre-change
+baseline: <baseline from Step 1>. Report back only the issues that are newly appearing (not present in the
+baseline)."})`. Running this via `gate-runner`, and having it do the diffing itself, keeps the full reports and
+already-known pre-existing issues out of the main context window since only newly introduced issues matter here. Any issue reported back is a regression this
 task introduced — fix it (then re-run Steps 6–8 to confirm the fix didn't break tests or coverage) and re-check
 until none remain. Leave a new issue in place only if fixing it is genuinely unavoidable (e.g. it would
 contradict what the task explicitly specifies) — in that case say so, and why, in your Step 11 summary rather

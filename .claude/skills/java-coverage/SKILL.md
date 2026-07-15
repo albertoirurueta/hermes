@@ -49,14 +49,27 @@ report that wasn't (re)generated.
 
 ## Step 4 — Read the exact coverage from `jacoco.csv`
 
-Read `target/site/jacoco/jacoco.csv`. Its header is:
+Its header is:
 
 ```
 GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
 ```
 
-For each target class from Step 2, find its row (match the `CLASS` column exactly — nested/inner classes appear
-as separate rows, e.g. `Outer$Inner`) and compute:
+For a small, known number of target classes from Step 2 (the common case), extract just their row(s) instead of
+reading the whole file — a multi-module project's CSV can have many rows:
+
+```bash
+awk -F, 'NR==1 || $3=="<ClassName1>" || $3=="<ClassName2>"' target/site/jacoco/jacoco.csv
+```
+
+Matching the `CLASS` column exactly (not a substring grep) avoids a false match against an unrelated class whose
+name merely contains the target's (e.g. `FooBar` when the target is `Foo`) — nested/inner classes appear as
+separate rows, e.g. `Outer$Inner`, and need their own explicit condition if relevant. If Step 2 couldn't narrow
+down to specific class names (a wildcard/package-pattern/full-suite run touching many classes), read the whole
+file instead — composing a long `awk` condition for many classes isn't worth it once there are more than a
+handful.
+
+For each target class, once you have its row, compute:
 
 ```
 line coverage %      = LINE_COVERED / (LINE_COVERED + LINE_MISSED) * 100

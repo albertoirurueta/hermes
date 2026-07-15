@@ -40,45 +40,69 @@ Find `antora.yml` (`find . -name antora.yml -not -path '*/node_modules/*'`).
   complete inventory the rest of this skill documents — if it's empty of skills, tell the user there's
   nothing to document and stop.
 
-## Step 3 — Read and classify each skill/agent
+## Step 3 — Read and classify each skill/agent, via one sub-agent per item
 
-For each skill, read its full `SKILL.md` and extract:
+Reading every skill's full `SKILL.md` (and every custom agent's definition) directly in this conversation is
+exactly the kind of thing this catalog's own `gate-runner`/`change-summarizer` agents exist to avoid elsewhere —
+with a few dozen skills, doing that inline here would make this one of the heaviest single passes in the whole
+catalog. Instead, dispatch one sub-agent per skill/agent found in Step 2, each reading only its own file and
+returning a compact, structured summary — not its full content — for this conversation to collect and use in
+Steps 4 onward. Dispatch these concurrently (they're independent, each reading a different file) rather than one
+at a time.
 
-- **Purpose**: the one-line `description` frontmatter field, expanded into a short paragraph grounded in the
-  skill's own opening paragraph and step list — don't just repeat the description verbatim on the detail
-  page, explain it.
-- **Invocation and inputs**: the `Invoke as` part of the description, plus whatever the skill's own early
-  steps (usually "Step 1" or "Step 0") say about arguments — positional args, an `args` block of `key: value`
-  lines accepted from an orchestrating skill, or no arguments at all. Note defaults and what happens when an
-  expected argument is missing.
-- **Outputs**: concrete artifacts and side effects — files created/modified, PRs/branches opened, or "a
-  report only, no changes" for read-only skills. Ground this in the skill's own "Report" step and whatever
-  Step explicitly writes/edits something.
-- **Execution flow**: the numbered `## Step N` headings, in order, including the real branches described in
-  each step (a skill stopping early, an `AskUserQuestion` choice, a loop back to an earlier step).
+For each skill:
 
-For each custom agent (`.claude/agents/*.md`), extract the same shape from its frontmatter/body: what it's
-for, what tools it has, and what triggers its use.
+```
+Agent({
+  description: "Extract metadata for <skill-name>",
+  prompt: "Read .claude/skills/<skill-name>/SKILL.md in full. Extract and report back, concisely — not the file's
+    raw content:
+    - purpose: the description frontmatter field expanded into a short paragraph grounded in the skill's opening
+      paragraph and step list.
+    - invocation: the exact slash-command form(s) from the description's 'Invoke as' text.
+    - inputs: any positional argument(s) or an args key:value block accepted, what happens when an expected
+      argument is missing, and defaults.
+    - outputs: concrete artifacts/side effects (files created/modified, PRs/branches opened, or 'report only') —
+      grounded in the skill's own final Report step and any step that explicitly writes/edits something.
+    - steps: the numbered '## Step N' headings in order, each with a one-line summary including any real branch
+      (an early stop, an AskUserQuestion choice, a loop back to an earlier step).
+    - invokes: every other skill this one calls via Skill(...) or 'invoke the X skill' prose, with the step
+      number and why.
+    - spawns: every Agent(...) call this one makes — which built-in or custom agent type it names (or 'default,
+      i.e. general-purpose' if none is named), the step number, and why a sub-agent is used there.
+    - external_deps: any skill named that does NOT exist under .claude/skills/ in this repository.",
+  run_in_background: false
+})
+```
 
-For each built-in agent type found in Step 2, its "definition" is just how it's described in the session's
-own agent-type list (or, absent that, general Claude Code documentation) — summarize that briefly; the
-detail worth capturing is *where and why this repository's skills use it*, gathered in Step 4.
+For each custom agent (`.claude/agents/*.md`), dispatch the same shape, adapted: purpose, and `tools` (its
+`tools:` frontmatter) — skip `used_by`, since Step 4 derives it by inverting every skill's own `spawns` list
+rather than asking the agent's own file about its callers.
+
+For each built-in agent type found in Step 2 (e.g. `Explore`, `general-purpose`), there's no file to dispatch a
+sub-agent against — summarize its definition directly from the session's own agent-type list (or, absent that,
+general Claude Code documentation); the detail worth capturing is *where and why this repository's skills use
+it*, gathered from the `spawns` fields collected above.
+
+Collect every returned summary, keyed by skill/agent name — this collected set, not the raw files, is what Steps
+4 onward work from.
 
 ## Step 4 — Build the dependency graph
 
-For every skill, find every other skill/agent it depends on, in both directions:
+Use the `invokes`/`spawns`/`external_deps` fields Step 3 already collected for every skill — there's no need to
+re-read or re-scan any `SKILL.md` here, Step 3's dispatch already extracted exactly this:
 
-- **Skill invokes skill**: search for `Skill({skill: "<name>", ...})` calls, and prose like "invoke the
-  `<name>` skill" or "run `/<name>`". Record the calling skill's step number and *why* (e.g. "to ground the
-  plan in a prior exploration").
-- **Skill spawns agent**: search for `Agent({...})` calls. Record which built-in/custom agent type each one
-  uses (or "default, i.e. `general-purpose`" if none is named) and why a sub-agent is used here specifically
-  (context isolation from a verbose report, running a delegated skill with a clean context, parallelizing
-  independent work) — this "why" belongs on both the skill's page and the agent's page.
-- **External dependencies**: a skill may reference another skill by name that does **not** exist under
-  `.claude/skills/` in this repository (e.g. one assumed to be available globally/session-wide rather than
-  checked into this catalog). Record these separately — they get named in prose on the relevant detail
-  page(s) and in the dependency graph, but never get their own detail page or a broken `xref:` link.
+- **Skill invokes skill**: from each skill's `invokes` field — the calling skill's step number and *why* (e.g.
+  "to ground the plan in a prior exploration").
+- **Skill spawns agent**: from each skill's `spawns` field — which built-in/custom agent type each one uses (or
+  "default, i.e. `general-purpose`" if none is named) and why a sub-agent is used here specifically (context
+  isolation from a verbose report, running a delegated skill with a clean context, parallelizing independent
+  work) — this "why" belongs on both the skill's page and the agent's page.
+- **External dependencies**: from each skill's `external_deps` field — a skill referenced by name that does
+  **not** exist under `.claude/skills/` in this repository (e.g. one assumed to be available globally/
+  session-wide rather than checked into this catalog). Record these separately — they get named in prose on the
+  relevant detail page(s) and in the dependency graph, but never get their own detail page or a broken `xref:`
+  link.
 - Invert the "invokes"/"spawns" edges to get "invoked by"/"used by" for each target.
 - A skill or agent with no inbound edges from this repository's own skills is a top-level entry point
   (typically invoked directly by a person) — note that explicitly rather than leaving its "invoked by"

@@ -36,19 +36,41 @@ instead of assuming GitHub/`gh`:
 
 Record the detected host — every later step's "use the host's tool" instruction refers back to this.
 
-## Step 2 — Determine the diff to describe
+## Step 2 — Determine the diff to describe, then delegate drafting
 
 - Determine the current branch: `git branch --show-current`.
 - Determine the repository's base branch: `git symbolic-ref refs/remotes/origin/HEAD` (strip the
   `refs/remotes/origin/` prefix), falling back to `main`/`master` if that ref isn't set, or asking the user if
   genuinely ambiguous.
-- Gather the full picture of changes relative to that base:
-  - Commits already on this branch but not on base: `git diff <base>...HEAD`
-  - Anything not yet committed: `git status`, `git diff`, and `git diff --staged`
-- If there is nothing to describe (no commits ahead of base, no staged/unstaged changes, no untracked files), tell
-  the user and stop rather than inventing a description.
-- Read the full diff, not just file names or stat summaries — the description must be grounded in what actually
-  changed.
+- Check whether there's anything to describe at all, without reading the full diff yet: `git status`, `git diff
+  --stat`, and `git diff <base>...HEAD --stat`. If all three come back empty (no commits ahead of base, no
+  staged/unstaged changes, no untracked files), tell the user and stop rather than inventing a description.
+- Otherwise, delegate reading the full diff and drafting the description to a sub-agent, so the raw diff stays out
+  of this conversation and only the drafted text comes back — nothing later in this skill needs the diff itself,
+  only the draft:
+
+  ```
+  Agent({
+    description: "Draft PR description from diff",
+    prompt: "Read the full diff for this repository: commits already on the current branch (<current-branch>) but
+      not on <base-branch> (git diff <base-branch>...HEAD), plus anything not yet committed (git status, git diff,
+      git diff --staged), and recent commit messages for context on intent (git log --oneline against the same
+      range). Draft a brief, concise pull request description grounded in what actually changed: one or two
+      summary sentences, then a short bulleted list of the concrete changes if there is more than one logical
+      change (omit any section that would be empty or redundant). Emojis are fine, used sparingly — one per bullet
+      to categorize (✨ feature, 🐛 fix, ♻️ refactor, 📝 docs, ✅ tests) —
+      don't overuse them. A small Mermaid diagram (a fenced ```mermaid block) is fine when a change reshapes
+      control/data flow in a way a diagram clarifies faster than prose; skip it for straightforward changes
+      regardless — most PRs don't need one. Don't invent behavior that isn't in the diff, and don't editorialize
+      about code quality. Report back only the drafted description text — not the diff or commit log.",
+    run_in_background: false
+  })
+  ```
+
+  Reading a large diff directly into this conversation, when only the compact draft is ever used afterward, is
+  the same class of waste `gate-runner`/`change-summarizer` already solve elsewhere in this catalog for other
+  skills — a plain, unnamed sub-agent is enough here since this is a single, localized delegation rather than a
+  shape repeated across several skills.
 
 ## Step 3 — Check whether a pull request already exists
 
@@ -74,22 +96,12 @@ If no tool for the detected host is available at all (no CLI installed/authentic
 connection), tell the user and treat this as "no PR exists" — skip straight to Step 4, and in Step 6 only offer
 the printed description rather than attempting to create one.
 
-## Step 4 — Draft the description
+## Step 4 — Show the draft to the user
 
-Compose a description from the diff (and commit messages, for context on intent):
-
-- Keep it brief — a short summary of what changed and why, not a line-by-line narration of the diff.
-- Structure loosely as one or two summary sentences, then a short bulleted list of the concrete changes if there
-  is more than one logical change. Omit any section that would be empty or redundant.
-- Emojis are fine, used sparingly — e.g. one per bullet to categorize (✨ feature, 🐛 fix, ♻️ refactor, 📝 docs,
-  ✅ tests) — don't overuse them.
-- A small Mermaid diagram (` ```mermaid ` fenced block) is fine when a change reshapes control/data flow in a way
-  a diagram clarifies faster than prose — GitHub and Azure DevOps render Mermaid natively in PR/description
-  bodies; Bitbucket does not, so skip it there (or check first if unsure). Skip it for straightforward changes
-  regardless — most PRs don't need one.
-- Don't invent behavior that isn't in the diff, and don't editorialize about code quality.
-
-Show the drafted description to the user before taking any further action.
+The description itself was already drafted by Step 2's sub-agent, grounded in the actual diff and recent commit
+messages. Before taking any further action: show it to the user as-is, and if the repository host is Bitbucket
+(from Step 1), strip or flag any Mermaid block first — GitHub and Azure DevOps render Mermaid natively in PR/
+description bodies, Bitbucket does not.
 
 ## Step 5 — Existing PR: offer to update it
 

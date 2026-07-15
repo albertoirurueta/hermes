@@ -119,8 +119,10 @@ versa:
 
 This is the most judgment-heavy part — ground it in what the code actually does, don't invent behavior:
 
-- Read the main source entry points (the primary public classes/interfaces/functions a consumer would use — for a
-  library, usually a small number of top-level types; for an application, its README-worthy commands/endpoints).
+- Identify the main source entry points (the primary public classes/interfaces/functions a consumer would use —
+  for a library, usually a small number of top-level types; for an application, its README-worthy commands/
+  endpoints) without reading the whole source tree directly: use the `Explore` agent to locate them first, then
+  read only those specific files.
 - If Antora docs already exist (`docs/modules/ROOT/pages/index.adoc`, `getting-started.adoc`, or similar), prefer
   reusing/adapting their conceptual explanation and example code rather than writing a divergent one from scratch
   — the README and the docs site describing the same library differently is a maintenance trap.

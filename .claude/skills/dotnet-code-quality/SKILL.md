@@ -51,9 +51,27 @@ dotnet build [<path-to-.sln-or-.csproj>] --no-incremental "-p:ErrorLog=./dotnet-
   warnings-as-errors from StyleCop/CA rules, the SARIF log is still written (diagnostics are captured as they're
   emitted, before that promotion fails the build) — proceed to read it normally.
 
-## Step 3 — Read the generated SARIF log
+## Step 3 — Read the generated SARIF log, scoped to the request if given
 
-Read `./dotnet-code-quality.sarif` (or wherever `ErrorLog` pointed). Its structure groups results by run/tool:
+`./dotnet-code-quality.sarif` (or wherever `ErrorLog` pointed) can be large on a solution with many projects/
+issues, and the build in Step 2 still analyzed the whole targeted solution/project regardless of scope (Roslyn
+analyzers have no per-file CLI selector equivalent to Surefire's `-Dtest`) — so a scoped invocation should filter
+before reading the full file rather than after.
+
+**With no argument** (whole solution): read the file in full.
+
+**With a specific project/file/class name**: if `jq` is available (`jq --version`), filter to just the matching
+results instead of loading the whole file into context:
+```bash
+jq '[.runs[].results[] | select(.locations[0].physicalLocation.artifactLocation.uri | endswith("/<Name>.cs"))]' \
+  ./dotnet-code-quality.sarif
+```
+(match the named project's directory instead of a `.cs` suffix if scoping to a whole project). If `jq` isn't
+available, read the full file — there's no clean line-based extraction for JSON the way `awk`'s range pattern
+works for the Checkstyle/PMD skill's XML, so filtering after a full read is the fallback here, not a first
+resort.
+
+Its structure groups results by run/tool:
 
 ```json
 {
@@ -97,15 +115,7 @@ ID, severity (`level`: `error`/`warning`/`note`), and the message text. A `ruleI
 rules` for that run can still be looked up in another run's `rules` array if the same analyzer package is
 referenced by multiple projects.
 
-## Step 4 — Scope to the user's request, if given
-
-With no argument, summarize every issue across both tools (and note any `CS`/`IDE` diagnostics separately). If
-invoked with a specific project/file/class name, filter `results` to entries whose `artifactLocation.uri` ends in
-`/<Name>.cs` (or matches the named project's directory) — the build in Step 2 still analyzed the whole targeted
-solution/project regardless, since Roslyn analyzers have no per-file CLI selector equivalent to Surefire's
-`-Dtest`.
-
-## Step 5 — Report
+## Step 4 — Report
 
 Group findings by tool (StyleCop.Analyzers, then CA rules), then by file. For each issue, give file:line, the rule
 ID, severity, and the message. State a total count per tool at the top and an overall total; if a tool found zero

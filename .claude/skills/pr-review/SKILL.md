@@ -96,11 +96,14 @@ Otherwise, look for a reference in the PR title or body:
 - Jira patterns: a bare Jira key mention (e.g. `PROJ-123`) anywhere in the title/body — teams commonly include
   these via commit-message/PR conventions or smart-commit links.
 
-Either way, once a ticket id is known, fetch it the same way the `explore`/`issue` skills do:
-- **GitHub issue**: `gh issue view <ticket-id> --json number,title,body,labels,comments,state,url` (or GitHub MCP
-  tools if `gh` is unavailable).
-- **Jira ticket**: search for connected Jira MCP tools (`ToolSearch` "jira issue" or "jira ticket") and fetch it
-  by key.
+Either way, once a ticket id is known, fetch it — but unlike `explore`/`issue` (which ground a broader
+exploration or file a new ticket and so want the full comment thread), Step 7 below only checks the diff against
+the ticket's stated intent, so there's no need to pull the comment history by default:
+- **GitHub issue**: `gh issue view <ticket-id> --json number,title,body,labels,state,url` (or GitHub MCP tools if
+  `gh` is unavailable). Only add `comments` to the fetch if the title/body alone leaves genuine ambiguity about
+  scope or acceptance criteria that a comment thread would likely resolve.
+- **Jira ticket**: search for connected Jira MCP tools (`ToolSearch` "jira issue" or "jira ticket") and fetch its
+  summary/description/labels/status — same reasoning, skip comments unless the description alone is ambiguous.
 
 If no reference is found/provided, or the ticket can't be fetched, continue without one — this skill works fine
 on a PR with no linked ticket, it just loses that piece of intent context.

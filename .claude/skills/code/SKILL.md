@@ -59,34 +59,33 @@ tags in "Implementation steps" if it declared them per task instead (this is exa
 4/5 produce). Collect the distinct set of keys found across the whole plan — usually just one (e.g. `java` or
 `dotnet`), occasionally more for a plan spanning several languages.
 
-For each distinct key, capture a project-wide quality baseline by delegating to a sub-agent rather than running
-that language's quality skill directly — use the matching `<key>-code-quality` skill for the detected language/
-framework, e.g. `java-code-quality` when the plan is Java (Checkstyle/PMD/SpotBugs), or `dotnet-code-quality` when
-it's .NET (StyleCop.Analyzers/CA rules), or whichever other `<key>-code-quality` skill matches a key found in this
-repository's `.claude/skills`: `Agent({description: "Capture code-quality baseline (<key>)", prompt: "Invoke
-Skill({skill: \"<key>-code-quality\"}) unscoped, then report back only the total issue count per tool and the
-per-file list of issues — not the raw generated reports."})`. Running it in a sub-agent's separate context, and
-having it return just the issue list rather than the full generated reports, keeps the report contents out of the
-main context window since they aren't needed here — only the resulting list of issues is. Record each returned
-list, keyed by its language/framework, as that key's baseline — the final check in Step 7 compares each one back
-against its own key's baseline to judge whether the plan's work left overall code quality at least as good as it
-found it. Skip capturing a baseline for any key that has no matching `<key>-code-quality` skill installed in this
-repository, and skip this baseline capture entirely if no language/framework key could be determined for the plan
-at all.
+For each distinct key, capture a project-wide quality baseline by delegating to the `gate-runner` agent rather
+than running that language's quality skill directly — use the matching `<key>-code-quality` skill for the
+detected language/framework, e.g. `java-code-quality` when the plan is Java (Checkstyle/PMD/SpotBugs), or
+`dotnet-code-quality` when it's .NET (StyleCop.Analyzers/CA rules), or whichever other `<key>-code-quality` skill
+matches a key found in this repository's `.claude/skills`: `Agent({description: "Capture code-quality baseline
+(<key>)", subagent_type: "gate-runner", prompt: "Invoke Skill({skill: \"<key>-code-quality\"}) unscoped. Report
+back only the total issue count per tool and the per-file list of issues."})`. `gate-runner` runs in its own
+separate context and is built to report back just the issue list rather than the full generated reports, keeping
+that content out of the main context window since only the resulting list of issues is needed here. Record each
+returned list, keyed by its language/framework, as that key's baseline — the final check in Step 7 compares each
+one back against its own key's baseline to judge whether the plan's work left overall code quality at least as
+good as it found it. Skip capturing a baseline for any key that has no matching `<key>-code-quality` skill
+installed in this repository, and skip this baseline capture entirely if no language/framework key could be
+determined for the plan at all.
 
-Also capture a project-wide security baseline the same way, by delegating to a sub-agent rather than running
-`check-security` directly: `Agent({description: "Capture security baseline", prompt: "Invoke Skill({skill:
-\"check-security\"}) unscoped, project-wide. Report back only the count and the per-file list of flagged secrets
-(new since the last `.secrets.baseline` update, plus any still lacking a triage label) — not the raw
-detect-secrets output or baseline file contents."})`. As with the quality baseline, running this in a sub-agent's
-separate context keeps the raw scan output out of the main context window since only the resulting issue count/
-list is needed here. Record that returned count/list as the baseline the final check in Step 7 compares against
-— the goal is to catch any task in this run that introduces a new secret into the codebase, not to fix
-pre-existing findings this run didn't cause. If the sub-agent reports that `detect-secrets` could not be
-installed and the user chose to continue without scanning, record that security scanning is unavailable for this
-run, skip this and the corresponding Step 7 security check entirely, and say so plainly in the Step 9 summary
-rather than silently omitting it. Skip this baseline capture outright if the `check-security` skill is
-unavailable in this repository.
+Also capture a project-wide security baseline the same way, by delegating to `gate-runner` rather than running
+`check-security` directly: `Agent({description: "Capture security baseline", subagent_type: "gate-runner",
+prompt: "Invoke Skill({skill: \"check-security\"}) unscoped, project-wide. Report back only the count and the
+per-file list of flagged secrets (new since the last `.secrets.baseline` update, plus any still lacking a triage
+label)."})`. As with the quality baseline, this keeps the raw scan output out of the main context window since
+only the resulting issue count/list is needed here. Record that returned count/list as the baseline the final
+check in Step 7 compares against — the goal is to catch any task in this run that introduces a new secret into
+the codebase, not to fix pre-existing findings this run didn't cause. If the sub-agent reports that
+`detect-secrets` could not be installed and the user chose to continue without scanning, record that security
+scanning is unavailable for this run, skip this and the corresponding Step 7 security check entirely, and say so
+plainly in the Step 9 summary rather than silently omitting it. Skip this baseline capture outright if the
+`check-security` skill is unavailable in this repository.
 
 ## Step 4 — Implement tasks one at a time, in plan order
 
@@ -106,16 +105,33 @@ resolve which `<key>-code-one-task` skill it dispatches to before invoking anyth
    conventions from `CLAUDE.md`. Then continue to Step 5 for this task as usual.
 
 Once a key is resolved (steps 1 or 2 above) and a matching `<key>-code-one-task` skill exists in this repository
-(e.g. `java-code-one-task` for `java`, `dotnet-code-one-task` for `dotnet`), invoke `Skill({skill:
-"<key>-code-one-task", args: "<the task's full text from the plan, including its sub-tasks and any relevant
-"Current code state" context>"})`. That skill re-checks the current code state, implements the task, writes/
-updates its tests, adds license headers, updates documentation (Javadoc, XML doc comments, or whatever this
-language's equivalent is), runs the scoped tests, checks coverage, runs the full suite, and checks for new
-code-quality issues against a pre-change baseline it captures itself — then hands back a short summary (files
-touched, tests added/updated, coverage achieved, and the code-quality outcome, including any issue left in place
-as unavoidable and why, or whether license-header generation was skipped by the user). If the resolved key has no
-matching `<key>-code-one-task` skill installed in this repository, fall back to implementing the task directly,
-same as case 3 above.
+(e.g. `java-code-one-task` for `java`, `dotnet-code-one-task` for `dotnet`), invoke it via the
+`isolated-skill-executor` agent rather than calling `Skill(...)` directly:
+
+```
+Agent({
+  description: "Implement task via <key>-code-one-task",
+  subagent_type: "isolated-skill-executor",
+  prompt: "Invoke Skill({skill: \"<key>-code-one-task\", args: \"<the task's full text from the plan, including
+    its sub-tasks and any relevant \\\"Current code state\\\" context>\"}). Report back: the files touched, tests
+    added/updated, coverage achieved, the code-quality outcome (including any issue left in place as unavoidable
+    and why), whether license-header generation was skipped, and whether the skill stopped on a blocker instead
+    of finishing.",
+  run_in_background: false
+})
+```
+
+The one-task skill always re-checks the current code state from disk itself (never trusting anything passed in)
+and hands back a fully self-contained summary — nothing this skill needs is lost by keeping that skill's own file
+reads/edits/reasoning out of `code`'s own context this way. This matters most on a plan with many tasks: without
+this, every task's full implementation transcript would accumulate in `code`'s context across the whole run,
+growing linearly with task count, instead of `code`'s context staying flat regardless of plan size. Wait for the
+agent to finish (`run_in_background: false` — Step 5 needs its outcome before checking the task's box and moving
+on) before proceeding. That skill implements the task, writes/updates its tests, adds license headers, updates
+documentation (Javadoc, XML doc comments, or whatever this language's equivalent is), runs the scoped tests,
+checks coverage, runs the full suite, and checks for new code-quality issues against a pre-change baseline it
+captures itself. If the resolved key has no matching `<key>-code-one-task` skill installed in this repository,
+fall back to implementing the task directly, same as case 3 above.
 
 If the invoked `<key>-code-one-task` skill reports that it stopped short on a blocker (a failing test that
 suggests the plan's approach itself is wrong, or an ambiguity only the user can resolve — see that skill's own
@@ -163,26 +179,26 @@ archiving — an incomplete plan stays at the root so the next run can resume it
 ## Step 7 — Final verification
 
 Once every checkbox is checked, confirm the whole build — not just the incrementally-tested pieces — is healthy
-by running the full local verification from `CLAUDE.md` in a sub-agent, for the same reason as the other
-verification steps in Step 4: `Agent({description: "Run full local verification", prompt: "Run `mvn clean
-jacoco:prepare-agent install jacoco:report javadoc:jar source:jar -P '!build-extras'`. If it succeeds, report
-back only that the build succeeded. If it fails, report back only the failing module/goal, the failure reason,
-and the relevant error output/stack trace — not the full build log."})`. Running this in a sub-agent's separate
-context keeps the verbose build output out of the main context window. If it fails, fix it (or, if it's a
+by running the full local verification from `CLAUDE.md` via the `gate-runner` agent, for the same reason as the
+other verification steps in Step 4: `Agent({description: "Run full local verification", subagent_type:
+"gate-runner", prompt: "Run `mvn clean jacoco:prepare-agent install jacoco:report javadoc:jar source:jar -P
+'!build-extras'`. If it succeeds, report back only that the build succeeded. If it fails, report back only the
+failing module/goal, the failure reason, and the relevant error output/stack trace."})`. Running this via
+`gate-runner` keeps the verbose build output out of the main context window. If it fails, fix it (or, if it's a
 genuine blocker per Step 6, stop and surface it) — do not archive a plan behind a broken build. Re-invoke the
-same sub-agent pattern after fixing, and repeat until it reports success.
+same agent call after fixing, and repeat until it reports success.
 
 Then assess overall code quality against the baseline(s) captured in Step 3, once per distinct language/framework
 key found in the plan:
 
-1. For each key a baseline was captured for in Step 3, run its project-wide quality check by delegating to a
-   sub-agent, for the same reason as the other quality checks in this skill: `Agent({description: "Compare final
-   quality against baseline (<key>)", prompt: "Invoke Skill({skill: \"<key>-code-quality\"}) unscoped,
-   project-wide. Compare the reported issues against this baseline: <that key's baseline from Step 3>. Report back
-   only the total issue count per tool and the per-file list of issues — not the raw generated reports."})` — e.g.
-   `java-code-quality` for the `java` baseline, `dotnet-code-quality` for the `dotnet` baseline. Running each in
-   its own sub-agent's separate context keeps the full reports out of the main context window. Compare each
-   returned counts/per-file list against that same key's Step 3 baseline.
+1. For each key a baseline was captured for in Step 3, run its project-wide quality check by delegating to the
+   `gate-runner` agent, for the same reason as the other quality checks in this skill: `Agent({description:
+   "Compare final quality against baseline (<key>)", subagent_type: "gate-runner", prompt: "Invoke Skill({skill:
+   \"<key>-code-quality\"}) unscoped, project-wide. Compare the reported issues against this baseline: <that key's
+   baseline from Step 3>. Report back only the total issue count per tool and the per-file list of issues."})` —
+   e.g. `java-code-quality` for the `java` baseline, `dotnet-code-quality` for the `dotnet` baseline. Running each
+   via `gate-runner` keeps the full reports out of the main context window. Compare each returned counts/per-file
+   list against that same key's Step 3 baseline.
 2. If, across every key checked, the total issue count did not increase and is zero (or was already zero at
    baseline and still is), overall quality is excellent — proceed to Step 8.
 3. Otherwise — one or more keys leave the project with more issues than it started with, or a nonzero count
@@ -206,13 +222,12 @@ Then assess security against the baseline captured in Step 3 (skip this entire a
 that security scanning is unavailable for this run, or if the `check-security` skill is unavailable in this
 repository):
 
-1. Run the project-wide security check by delegating to a sub-agent, for the same reason as the quality check
-   above: `Agent({description: "Compare final security scan against baseline", prompt: "Invoke Skill({skill:
-   \"check-security\"}) unscoped, project-wide. Report back only the count and the per-file list of flagged
-   secrets (new since the last `.secrets.baseline` update, plus any still lacking a triage label) — not the raw
-   detect-secrets output or baseline file contents."})`. Running this in a sub-agent's separate context keeps the
-   raw scan output out of the main context window. Compare the returned count/per-file list against the Step 3
-   baseline.
+1. Run the project-wide security check by delegating to the `gate-runner` agent, for the same reason as the
+   quality check above: `Agent({description: "Compare final security scan against baseline", subagent_type:
+   "gate-runner", prompt: "Invoke Skill({skill: \"check-security\"}) unscoped, project-wide. Report back only the
+   count and the per-file list of flagged secrets (new since the last `.secrets.baseline` update, plus any still
+   lacking a triage label)."})`. Running this via `gate-runner` keeps the raw scan output out of the main context
+   window. Compare the returned count/per-file list against the Step 3 baseline.
 2. If the count did not increase (zero flagged secrets beyond what Step 3 already recorded), security is
    clean — proceed to Step 8.
 3. If the count increased — this run's tasks introduced a new secret, or left one newly unaudited — treat this

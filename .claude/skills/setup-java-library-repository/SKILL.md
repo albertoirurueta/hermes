@@ -13,6 +13,13 @@ root `CHANGELOG.md`), and `setup-readme` (bootstraps a root `README.md`). This s
 logic — it collects the shared parameters once and passes each skill only what it needs, so the user isn't asked
 the same question repeatedly.
 
+Each of Steps 3–8 invokes its sub-skill via the `isolated-skill-executor` agent rather than calling `Skill(...)`
+directly. Every sub-skill already re-derives whatever it needs straight from the filesystem this orchestrator has
+just written to (as each step below notes), so this orchestrator only ever needs a short completion summary back
+— nothing is lost by keeping each sub-skill's own exploration, file reads, and internal reasoning out of this
+orchestrator's own context. Without this, all six sub-skills' full transcripts would accumulate in one
+conversation over the course of a single bootstrap run.
+
 ## Step 1 — Collect the project's identity
 
 Ask the user directly (plain conversation — these are free-text project-identity fields, not a bounded choice):
@@ -52,26 +59,34 @@ there's nothing to translate before Step 4.
 
 ## Step 3 — Run `setup-java-library`
 
-Format Step 1's answers as `key: value` lines and invoke:
+Format Step 1's answers as `key: value` lines and invoke via `isolated-skill-executor`:
 
 ```
-Skill({
-  skill: "setup-java-library",
-  args: "groupId: <group-id>\nartifactId: <artifact-id>\npackage: <base-package>\n"
-      + "developer-name: <developer-name>\ndeveloper-email: <developer-email>\n"
-      + "organization-url: <organization-url>\nlicense: <license-name, or 'none'>"
+Agent({
+  description: "Run setup-java-library",
+  subagent_type: "isolated-skill-executor",
+  prompt: "Invoke Skill({skill: \"setup-java-library\", args: \"groupId: <group-id>\\nartifactId: <artifact-id>\\n
+    package: <base-package>\\ndeveloper-name: <developer-name>\\ndeveloper-email: <developer-email>\\n
+    organization-url: <organization-url>\\nlicense: <license-name, or 'none'>\"}). Report back: whether pom.xml
+    and the source folders were created fresh or already existed (and, if so, whether the user chose to stop),
+    and any value it resolved on its own (e.g. version, repository info) worth noting in the final summary.",
+  run_in_background: false
 })
 ```
 
 `setup-java-library` parses these itself (its own Step 0) and only asks the user about anything genuinely left
-out (e.g. `version`, or repository info it infers from git directly). If it reports that `pom.xml` already
-existed and the user chose to stop, stop this skill here too — there's no coherent project identity to build
-Antora docs or CI workflows around yet.
+out (e.g. `version`, or repository info it infers from git directly) — `AskUserQuestion` surfaces to the user the
+same way whether invoked directly or from inside this sub-agent. If it reports that `pom.xml` already existed and
+the user chose to stop, stop this skill here too — there's no coherent project identity to build Antora docs or
+CI workflows around yet.
 
 ## Step 4 — Run `antora-setup`
 
-Invoke `Skill({skill: "antora-setup"})` with no `args` — it derives the Antora component name, title, and version
-straight from the `pom.xml` Step 3 just wrote, so nothing needs to be passed through.
+Invoke via `isolated-skill-executor`: `Agent({description: "Run antora-setup", subagent_type:
+"isolated-skill-executor", prompt: "Invoke Skill({skill: \"antora-setup\"}) with no args — it derives the Antora
+component name, title, and version straight from the repository's pom.xml, so nothing needs to be passed through.
+Report back: which files/pages were created vs. already present, and whether the site build succeeded.",
+run_in_background: false})`.
 
 Run this *before* Step 6, not after, even though the user described these two in the other order: `antora-setup`
 is quick to detect as "already done" and `setup-java-github-workflows`'s own survey (Step 1 there) checks whether
@@ -80,30 +95,41 @@ everything in place instead of flagging a gap it would otherwise ask about.
 
 ## Step 5 — Run `setup-java-gitignore`
 
-Invoke `Skill({skill: "setup-java-gitignore"})` with no `args` — it takes none, deriving everything it needs by
-exploring the repository directly. Run this after Steps 3–4, not before: `setup-java-gitignore` detects the build
-tool and any generated build-info file from the `pom.xml` Step 3 just wrote, and detects the Antora docs build
-output from the `docs/antora-playbook.yml` Step 4 just scaffolded — running it earlier would miss both and produce
-a thinner `.gitignore` than the repository's actual shape supports. Run it *before* Step 6
-(`setup-java-github-workflows`), so `target/`, `.idea/`, and the Antora build output are already ignored before CI
-config and any generated reports show up locally. For a genuinely brand-new repository, `.gitignore` won't already
-exist, so `setup-java-gitignore`'s own approval step is skipped and it writes directly — nothing further to
-confirm here.
+Invoke via `isolated-skill-executor`: `Agent({description: "Run setup-java-gitignore", subagent_type:
+"isolated-skill-executor", prompt: "Invoke Skill({skill: \"setup-java-gitignore\"}) with no args — it takes none,
+deriving everything it needs by exploring the repository directly. Report back only whether .gitignore was
+created fresh or updated, and what categories of entries it added.", run_in_background: false})`. Run this after
+Steps 3–4, not before: `setup-java-gitignore` detects the build tool and any generated build-info file from the
+`pom.xml` Step 3 just wrote, and detects the Antora docs build output from the `docs/antora-playbook.yml` Step 4
+just scaffolded — running it earlier would miss both and produce a thinner `.gitignore` than the repository's
+actual shape supports. Run it *before* Step 6 (`setup-java-github-workflows`), so `target/`, `.idea/`, and the
+Antora build output are already ignored before CI config and any generated reports show up locally. For a
+genuinely brand-new repository, `.gitignore` won't already exist, so `setup-java-gitignore`'s own approval step is
+skipped and it writes directly — nothing further to confirm here.
 
 ## Step 6 — Run `setup-java-github-workflows`
 
-Format Step 2's answers as `key: value` lines and invoke:
+Format Step 2's answers, plus the `groupId`/`artifactId` already collected in Step 1, as `key: value` lines and
+invoke via `isolated-skill-executor`:
 
 ```
-Skill({
-  skill: "setup-java-github-workflows",
-  args: "integration-branch: <integration-branch>\njava-version: <java-version>\n"
-      + "publishing-server-id: <publishing-server-id>\nextras-profile-id: <extras-profile-id>\n"
-      + "sign-profile-id: <sign-profile-id>\nsettings-file: <settings-file>"
+Agent({
+  description: "Run setup-java-github-workflows",
+  subagent_type: "isolated-skill-executor",
+  prompt: "Invoke Skill({skill: \"setup-java-github-workflows\", args: \"integration-branch: <integration-branch>\\n
+    java-version: <java-version>\\npublishing-server-id: <publishing-server-id>\\n
+    extras-profile-id: <extras-profile-id>\\nsign-profile-id: <sign-profile-id>\\n
+    settings-file: <settings-file>\\ngroup-id: <group-id>\\nartifact-id: <artifact-id>\"}). Report back: whether
+    develop.yml/main.yml/sync.yml were created fresh or already existed (and, if so, whether the user chose to
+    stop), the required GitHub secrets it listed, and any open gap it flagged (missing Central plugin, missing
+    signing profile, missing Antora setup, README/Antora wording mismatch, etc.).",
+  run_in_background: false
 })
 ```
 
-`setup-java-github-workflows` parses these itself (its own Step 1) and only surveys/asks about facts these six
+Passing `group-id`/`artifact-id` through here lets `setup-java-github-workflows` skip re-reading them from
+`pom.xml` in its own Step 1, since this orchestrator already collected both in its own Step 1.
+`setup-java-github-workflows` parses these itself (its own Step 1) and only surveys/asks about facts these
 parameters don't cover (static-analysis plugins, SonarQube config, branch-model confirmation, etc.). If it reports
 that `develop.yml`/`main.yml` already existed and the user chose to stop, note that in Step 9's report rather than
 treating it as a failure of this skill — `pom.xml`, the Antora docs, and the `.gitignore` from Steps 3–5 are still
@@ -111,28 +137,32 @@ valid on their own.
 
 ## Step 7 — Run `setup-changelog`
 
-Invoke `Skill({skill: "setup-changelog"})` with no `args` — it takes none, working entirely from the repository's
-own git tag/GitHub Release history rather than anything collected in Steps 1–2. Run this before `setup-readme`
-(Step 8): it's independent of `pom.xml`, the Antora docs, the `.gitignore`, and the workflows, so its position
-relative to them doesn't matter functionally, but for a genuinely brand-new repository (no tags yet) it's the
-fastest to resolve — it either bootstraps a minimal `## [Unreleased]`-only file or stops per the user's choice, per
-its own Step 2. If `CHANGELOG.md` already exists, it stops immediately and reports that — treat that the same way
-as the stop cases in Steps 3 and 6: not a failure of this skill, just something to note in Step 9's report.
-Running it before `setup-readme` means the README's own Documentation section (which links to `CHANGELOG.md` if
-present) sees it already in place.
+Invoke via `isolated-skill-executor`: `Agent({description: "Run setup-changelog", subagent_type:
+"isolated-skill-executor", prompt: "Invoke Skill({skill: \"setup-changelog\"}) with no args — it takes none,
+working entirely from the repository's own git tag/GitHub Release history. Report back only whether
+CHANGELOG.md was created (and the version range reconstructed) or already existed.", run_in_background: false})`.
+Run this before `setup-readme` (Step 8): it's independent of `pom.xml`, the Antora docs, the `.gitignore`, and the
+workflows, so its position relative to them doesn't matter functionally, but for a genuinely brand-new repository
+(no tags yet) it's the fastest to resolve — it either bootstraps a minimal `## [Unreleased]`-only file or stops
+per the user's choice, per its own Step 2. If `CHANGELOG.md` already exists, it stops immediately and reports
+that — treat that the same way as the stop cases in Steps 3 and 6: not a failure of this skill, just something to
+note in Step 9's report. Running it before `setup-readme` means the README's own Documentation section (which
+links to `CHANGELOG.md` if present) sees it already in place.
 
 ## Step 8 — Run `setup-readme`
 
-Invoke `Skill({skill: "setup-readme"})` with no `args` — it takes none, deriving everything it needs by exploring
-the repository directly (the `pom.xml` from Step 3, the Antora docs from Step 4, the `.gitignore` from Step 5, the
-workflows and Sonar config from Step 6, and `CHANGELOG.md` from Step 7). Run this last, after every other skill:
-`setup-readme`'s badges, documentation links, and project-status table are only as complete as what already
-exists on disk when it runs, so giving it the finished state of Steps 3–7 to explore produces a fuller README than
-running it earlier would. For a genuinely brand-new repository, most of the CI/Sonar/changelog-derived sections
-will still be sparse or absent at this point (no commits/tags/CI runs yet) — that's expected; `setup-readme` omits
-what it can't confirm rather than inventing it, and the README can be regenerated later once the repository has
-real history. Since `README.md` won't already exist for a brand-new repository, `setup-readme`'s own approval step
-(its Step 9) is skipped and it writes directly — nothing further to confirm here.
+Invoke via `isolated-skill-executor`: `Agent({description: "Run setup-readme", subagent_type:
+"isolated-skill-executor", prompt: "Invoke Skill({skill: \"setup-readme\"}) with no args — it takes none, deriving
+everything it needs by exploring the repository directly (pom.xml, the Antora docs, .gitignore, the workflows and
+Sonar config, and CHANGELOG.md). Report back only which sections were included vs. omitted and why.",
+run_in_background: false})`. Run this last, after every other skill: `setup-readme`'s badges, documentation links,
+and project-status table are only as complete as what already exists on disk when it runs, so giving it the
+finished state of Steps 3–7 to explore produces a fuller README than running it earlier would. For a genuinely
+brand-new repository, most of the CI/Sonar/changelog-derived sections will still be sparse or absent at this point
+(no commits/tags/CI runs yet) — that's expected; `setup-readme` omits what it can't confirm rather than inventing
+it, and the README can be regenerated later once the repository has real history. Since `README.md` won't already
+exist for a brand-new repository, `setup-readme`'s own approval step (its Step 9) is skipped and it writes
+directly — nothing further to confirm here.
 
 ## Step 9 — Report
 
