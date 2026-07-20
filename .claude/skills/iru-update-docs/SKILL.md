@@ -1,6 +1,6 @@
 ---
 name: iru-update-docs
-description: Update a repository's Antora AsciiDoc documentation to reflect changes already made to the codebase (new/changed APIs, types, behavior, or conventions). Invoke as `/iru-update-docs` to cover uncommitted changes plus commits on the current branch not yet on the base branch, or `/iru-update-docs <git-ref-or-range>` to scope it to a specific ref/range (e.g. a commit, `main..HEAD`, a tag). Diagrams use Mermaid (`[mermaid]` blocks) and equations use MathJax (raw `\( \)` / `\[ \]` LaTeX) where they clarify behavior and the docs pipeline already supports them. If a documentation MCP (e.g. Confluence, Notion) is connected, also finds the relevant existing page(s) there and proposes matching updates — showing the exact change for the user to approve before anything is sent. Use whenever source changes should be reflected in the docs site instead of leaving pages stale.
+description: Update a repository's Antora AsciiDoc documentation to reflect changes already made to the codebase (new/changed APIs, types, behavior, or conventions). Invoke as `/iru-update-docs` to cover uncommitted changes plus commits on the current branch not yet on the base branch, or `/iru-update-docs <git-ref-or-range>` to scope it to a specific ref/range (e.g. a commit, `main..HEAD`, a tag). Diagrams use Mermaid (`[mermaid]` blocks) and equations use MathJax (raw `\( \)` / `\[ \]` LaTeX) where they clarify behavior and the docs pipeline already supports them. If a documentation MCP (e.g. Confluence, Notion) is connected, also finds the relevant existing page(s) there and proposes matching updates — showing the exact change for the user to approve before anything is sent; if that connector only exposes read-access tools with no way to create or update a page, warns the user and skips this part instead. Use whenever source changes should be reflected in the docs site instead of leaving pages stale.
 model: sonnet
 ---
 
@@ -111,7 +111,15 @@ something every session has available.
 
 - **If none is connected**: skip this step entirely and note that briefly in Step 7's report — there is nothing
   to do here.
-- **If one or more are found**:
+- **If one or more are found**: before searching for pages, check what that connector's own tools (via
+  `ToolSearch`) actually expose — read-oriented ones (search/get/read a page) vs. write-oriented ones
+  (create/update/append a page). Some environments connect a documentation MCP in read-only mode deliberately
+  (e.g. a Confluence connector scoped to search-and-read only, with no create-page/update-page tool at all).
+  - **Only read tools are available, no write tool exists**: warn the user explicitly that the connected
+    documentation MCP (name it) only supports read access, so no new or updated documentation can actually be
+    generated/sent there this run, then skip the rest of this step entirely — don't spend effort drafting a page
+    update that can never be applied. Note this briefly in Step 7's report too.
+  - **A write tool is available**: continue with the sub-steps below.
   1. **Find the relevant existing page(s) first.** Search the connected space using keywords drawn from Step 3's
      findings (the changed classes/behaviors/commands) and the topics already touched in Step 4, so any update
      is grounded in that system's actual current content and structure rather than guessed at. Read the found

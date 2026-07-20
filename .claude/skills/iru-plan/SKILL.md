@@ -1,6 +1,6 @@
 ---
 name: iru-plan
-description: Generate an implementation_plan.md at the repository root detailing the tasks needed to complete a piece of work, optionally grounded in a specific GitHub issue. Invoke as `/iru-plan <issue-id>` to plan for that issue, or `/iru-plan` with a description in the same message to plan manually described work. Runs the `iru-explore` skill first to ground the plan in the actual codebase and issue, unless that exploration already happened earlier in this conversation. If `implementation_plan.md` already exists at the repository root, determines whether it matches the requested task and asks the user whether to resume it as-is, discard and regenerate it, or update it while preserving already-completed tasks. Groups tasks into dependency-aware task groups — each marked parallelizable or not — so a downstream `iru-code`-style skill can validate once per group instead of once per task. Records which language/framework (e.g. `java`, `dotnet`) each task and sub-task belongs to, using the same keys as this repository's installed `<language>-code-one-task` skills, so a downstream execution skill knows which one to invoke per task without re-inferring it. Use when the user wants a concrete, reviewable step-by-step plan before code changes begin.
+description: Generate an implementation_plan.md at the repository root detailing the tasks needed to complete a piece of work, optionally grounded in a specific GitHub issue or Jira ticket. Invoke as `/iru-plan <ticket-id>` to plan for that ticket (a GitHub issue ID or Jira key, auto-detected like `iru-explore`), or `/iru-plan` with a description in the same message to plan manually described work. Runs the `iru-explore` skill first to ground the plan in the actual codebase and ticket, unless that exploration already happened earlier in this conversation. Records the source GitHub issue or Jira ticket, if any, in the plan's Task summary so later steps in the pipeline can track which tracked ticket the plan resolves. If `implementation_plan.md` already exists at the repository root, determines whether it matches the requested task and asks the user whether to resume it as-is, discard and regenerate it, or update it while preserving already-completed tasks. Groups tasks into dependency-aware task groups — each marked parallelizable or not — so a downstream `iru-code`-style skill can validate once per group instead of once per task. Records which language/framework (e.g. `java`, `dotnet`) each task and sub-task belongs to, using the same keys as this repository's installed `<language>-code-one-task` skills, so a downstream execution skill knows which one to invoke per task without re-inferring it. Use when the user wants a concrete, reviewable step-by-step plan before code changes begin.
 model: opus
 ---
 
@@ -14,15 +14,17 @@ to make in the whole pipeline.
 
 ## Step 1 — Determine what is being planned
 
-The skill may be invoked with a GitHub issue ID as its argument (e.g. `/iru-plan 42`), or with a free-form
-description of work to plan (e.g. `/iru-plan add retry support to the HTTP client`), or with neither.
+The skill may be invoked with a ticket ID as its argument — a GitHub issue ID (e.g. `/iru-plan 42`) or a Jira
+key (e.g. `/iru-plan PROJ-123`), auto-detected the same way `iru-explore` does — or with a free-form description
+of work to plan (e.g. `/iru-plan add retry support to the HTTP client`), or with neither.
 
-- **Issue ID provided**: use it as the issue ID, go to Step 2.
+- **Ticket ID provided**: use it as the ticket ID (noting whether it's a GitHub issue or a Jira ticket), go to
+  Step 2.
 - **Free-form task description provided** (in the invocation or immediately preceding user messages): use that
   as the task definition, go to Step 2.
-- **Neither provided**: ask the user (via `AskUserQuestion`) whether they want to plan around a GitHub issue ID
-  or a manually described task. If they give neither, ask them to briefly describe the task — a plan cannot be
-  produced without knowing what to plan.
+- **Neither provided**: ask the user (via `AskUserQuestion`) whether they want to plan around a GitHub issue or
+  Jira ticket ID, or a manually described task. If they give neither, ask them to briefly describe the task — a
+  plan cannot be produced without knowing what to plan.
 
 ## Step 2 — Reconcile with an existing `implementation_plan.md`
 
@@ -30,7 +32,7 @@ Check whether `implementation_plan.md` already exists at the repository root bef
 
 - **Missing**: nothing to reconcile — continue to Step 3.
 - **Present**: read it in full (its "Task summary" and checkbox state in particular) and compare it against the
-  task determined in Step 1 — same issue id/reference, same described files/classes/behavior, same general topic.
+  task determined in Step 1 — same ticket id/reference, same described files/classes/behavior, same general topic.
   You don't need a full codebase exploration to make this call; a reasonable topical read of both is enough.
   Then tell the user your assessment (clearly matches / clearly does not match / unclear) and ask, via
   `AskUserQuestion`, what to do:
@@ -49,14 +51,14 @@ Check whether `implementation_plan.md` already exists at the repository root bef
 
 ## Step 3 — Ground the plan via the `iru-explore` skill
 
-If an issue ID is involved, or the task otherwise warrants understanding unfamiliar parts of the codebase, this
+If a ticket ID is involved, or the task otherwise warrants understanding unfamiliar parts of the codebase, this
 plan must be grounded in a prior exploration, not produced from a cold start.
 
-- **Check first**: look back in the current conversation for exploration already performed for this same issue
+- **Check first**: look back in the current conversation for exploration already performed for this same ticket
   ID or task (either via the `iru-explore` skill or equivalent research already done in this session). If that
   exploration is present and looks reasonably current, reuse it and skip straight to Step 4 — do not repeat it.
-- **Otherwise**: invoke the `iru-explore` skill via the `Skill` tool, passing the issue ID as its argument if one
-  exists (`Skill({skill: "iru-explore", args: "<issue-id>"})`), or with no argument if this is a manually described
+- **Otherwise**: invoke the `iru-explore` skill via the `Skill` tool, passing the ticket ID as its argument if one
+  exists (`Skill({skill: "iru-explore", args: "<ticket-id>"})`), or with no argument if this is a manually described
   task that still needs codebase orientation. Wait for it to complete before continuing.
 - If the task is trivial and self-contained enough that no codebase orientation is needed at all (e.g. the user
   already pasted all relevant context, or the change is confined to a single already-known file), exploration
@@ -135,9 +137,12 @@ Write the plan to a file named `implementation_plan.md` at the repository root (
 user chose to discard, merge into it if the user chose to preserve completed work, or don't reach this step at
 all if the user chose to skip planning). Structure it as:
 
-1. **Task summary** — a brief, plain-language restatement of what is being requested and why (from the issue
+1. **Task summary** — a brief, plain-language restatement of what is being requested and why (from the ticket
    and/or user's description). If choices were made on the user's behalf per Step 4, state them here with a
-   one-line rationale.
+   one-line rationale. If this plan was grounded in a tracked GitHub issue or Jira ticket (per Step 1), state
+   its source explicitly as its own line, e.g. `Source: GitHub issue #42` or `Source: Jira PROJ-123`, so that a
+   future run (e.g. `iru-code`'s archiving step, or someone auditing `.archive/`) can tell which ticket this plan
+   resolves. Omit this line entirely for a manually described task with no ticket — don't fabricate one.
 2. **Current code state** — a brief summary of the relevant existing architecture/classes/files as found during
    exploration: what exists today, how it is structured, and where the change needs to land. Reference concrete
    file paths and class/method names from the actual repository, not vague descriptions.

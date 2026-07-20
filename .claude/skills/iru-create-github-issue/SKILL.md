@@ -1,6 +1,6 @@
 ---
 name: iru-create-github-issue
-description: Draft and file a new GitHub issue that is ready to be picked up by the `/iru-issue`, `/iru-plan`, `/iru-code` flow. Runs the `iru-explore` skill first to ground the issue in the actual codebase, then asks the user for the purpose of the task to be implemented, then asks for additional context (linked URLs, attached files/documents, related issues) and folds whatever is provided into the issue body. Classifies the issue as bug/feature/enhancement from the stated purpose and matches it against this repository's actual label set, drafts a title and body (Summary, Context, Acceptance criteria, References), and shows the draft for confirmation before filing it with `gh issue create` (or GitHub MCP tools if `gh` is unavailable). Invoke as `/iru-create-github-issue` or `/iru-create-github-issue <short description>`. Stops early if this repository isn't hosted on GitHub. Use when the user has an idea, bug report, or request that needs to become a well-formed, actionable GitHub issue before `/iru-issue` or `/iru-plan` can pick it up — not for issues that already exist (nothing to file) or repositories on Bitbucket/Azure DevOps/TFS/Jira (no issue-filing target this skill supports).
+description: Draft and file a new GitHub issue that is ready to be picked up by the `/iru-issue`, `/iru-plan`, `/iru-code` flow. Runs the `iru-explore` skill first to ground the issue in the actual codebase, then asks the user for the purpose of the task to be implemented, then asks for additional context (linked URLs, attached files/documents, related issues), then asks for the task's due date (optional) and importance (trivial/minor/important/blocking), and folds whatever is provided into the issue body. Classifies the issue as bug/feature/enhancement from the stated purpose and matches it against this repository's actual label set, drafts a title and body (Summary, Context, Acceptance criteria, Task details — due date, importance, and an estimated task difficulty from very easy to impossible based on everything gathered — References), and shows the draft for confirmation before filing it with `gh issue create` (or GitHub MCP tools if `gh` is unavailable). Invoke as `/iru-create-github-issue` or `/iru-create-github-issue <short description>`. Stops early if this repository isn't hosted on GitHub. Use when the user has an idea, bug report, or request that needs to become a well-formed, actionable GitHub issue before `/iru-issue` or `/iru-plan` can pick it up — not for issues that already exist (nothing to file) or repositories on Bitbucket/Azure DevOps/TFS/Jira (no issue-filing target this skill supports).
 model: sonnet
 ---
 
@@ -64,7 +64,25 @@ Gather whatever is provided:
 
 If the user has none of these, proceed with just the purpose from Step 3 — this step is not a blocker.
 
-## Step 5 — Classify the issue and pick a label
+## Step 5 — Ask for due date and importance
+
+Ask the user two more things before drafting — both help whoever triages or picks up the issue later:
+
+- **Due date**: ask plainly (in open-ended text, not `AskUserQuestion`) whether there's a deadline or target date
+  for this work, making clear it's optional. Normalize whatever they give to an absolute date (e.g. "next Friday"
+  → the actual date) for the drafted issue. If they have none, omit it from the draft entirely rather than
+  inventing one.
+- **Importance**: ask via `AskUserQuestion`, since this is a fixed choice, to pick one of:
+  - **Trivial** — cosmetic or nice-to-have, no real urgency.
+  - **Minor** — worth doing, but low impact if it slips.
+  - **Important** — meaningfully affects users or the project; should be prioritized in the normal course of work.
+  - **Blocking** — actively blocking other work, a release, or a user; needs prompt attention.
+  Only pre-select a recommended default if the purpose (Step 3) or context (Step 4) clearly implies one (e.g. a
+  bug described as breaking existing functionality leans toward Important/Blocking); otherwise present all four
+  with no default and let the user choose. If they decline to pick (e.g. via "Other"), record importance as "not
+  specified" rather than guessing on their behalf.
+
+## Step 6 — Classify the issue and pick a label
 
 Decide whether this is a bug or a feature/enhancement, using the same signal words `iru-issue`'s own classification
 step uses: language describing broken/incorrect existing behavior ("fails," "crash," "broken," "incorrect," "error
@@ -77,7 +95,7 @@ that isn't in that list. If nothing matches closely, or the classification is ge
 via `AskUserQuestion` to pick from the repository's actual label list (this is now a concrete decision among known
 options, unlike Steps 3-4's open-ended questions).
 
-## Step 6 — Draft the issue
+## Step 7 — Draft the issue
 
 Compose:
 
@@ -90,12 +108,23 @@ Compose:
     instead of cold.
   - **Acceptance criteria** — a short bulleted list, if the user gave any in Step 3 or they can be reasonably
     inferred from the purpose; omit this section entirely rather than inventing criteria that weren't discussed.
+  - **Task details** — a short bulleted list combining Step 5's answers with your own assessment:
+    - **Due date**: the date from Step 5, or omit this line entirely if none was given.
+    - **Importance**: the level chosen in Step 5 (trivial/minor/important/blocking), or "not specified."
+    - **Estimated difficulty**: your own assessment of how hard this task is to implement, grounded in everything
+      gathered so far — Step 2's exploration (how much of the codebase it touches, whether it needs new
+      abstractions or unfamiliar frameworks/dependencies, how many files/modules are affected), Step 3's purpose,
+      and Step 4's context. Pick exactly one level from: very easy, easy, medium, hard, very hard, extreme,
+      impossible — then state it plus a one-line rationale (e.g. "medium — touches two existing classes with
+      clear precedent elsewhere in the codebase, no new dependencies"). Use judgment based on the concrete
+      codebase evidence, not a formula; reserve "impossible" for something that genuinely isn't achievable as
+      stated (e.g. it contradicts a hard technical constraint uncovered in Step 2), not just "very hard."
   - **References** — any URLs, summarized file/document contents, and confirmed related-issue links from Step 4;
     omit if none were provided.
 
 Show the full drafted title and body to the user before taking any action.
 
-## Step 7 — Confirm and create
+## Step 8 — Confirm and create
 
 Filing an issue is visible to everyone with access to the repository — never do it without explicit confirmation.
 Ask the user via `AskUserQuestion`:
@@ -110,13 +139,13 @@ If they confirm creation:
   ```bash
   gh issue create --title "<title>" --body-file <path> --label "<label>"
   ```
-  Omit `--label` if Step 5 found no matching label. If `gh` is not installed/authenticated, search for GitHub MCP
+  Omit `--label` if Step 6 found no matching label. If `gh` is not installed/authenticated, search for GitHub MCP
   tools instead (`ToolSearch` "github issue") and use those to create the issue with the same title, body, and
   label.
 - Capture the created issue's number and URL from the command's own output (or `gh issue view --json number,url`
   immediately after, if the create output didn't surface it).
 
-## Step 8 — Report
+## Step 9 — Report
 
 Give the user the issue number and URL, and tell them the issue is now ready to be picked up: `/iru-issue <number>`
 to kick off branch creation, exploration, planning, implementation, and PR creation in one pass, or `/iru-plan

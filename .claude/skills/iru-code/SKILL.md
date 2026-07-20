@@ -1,6 +1,6 @@
 ---
 name: iru-code
-description: Execute the tasks in implementation_plan.md at the repository root, one task group at a time — implement every task in a group (in parallel where the plan marks the group parallelizable), validate the whole group once (tests, coverage, code quality), and check off each task's checkbox directly in implementation_plan.md before moving to the next group. Dispatches each group to the `iru-code-one-task-group` skill, which in turn resolves the language/framework-specific `<key>-code-one-task-group` skill declared by the plan (e.g. `iru-java-code-one-task-group`, `iru-dotnet-code-one-task-group`) — falling back to implementing a task directly when the plan names no matching key. Runs autonomously — user intervention is limited to unresolved errors, decisions only the user can make, or permissions the allowed-tools list doesn't cover. Warns the user up front if implementation_plan.md already exists at the repository root (expected only when resuming an interrupted prior run). On successful completion, updates the project's Antora documentation (via the `iru-update-docs` skill) to reflect all the changes the plan made, archives the plan to .archive/, asks the user whether to open follow-up tasks or GitHub issues if overall code quality isn't excellent, and asks for a final review of all code and documentation changes. Invoke as `/iru-code` once implementation_plan.md exists (e.g. produced by the `iru-plan` skill).
+description: Execute the tasks in implementation_plan.md at the repository root, one task group at a time — implement every task in a group (in parallel where the plan marks the group parallelizable), validate the whole group once (tests, coverage, code quality), and check off each task's checkbox directly in implementation_plan.md before moving to the next group. Dispatches each group to the `iru-code-one-task-group` skill, which in turn resolves the language/framework-specific `<key>-code-one-task-group` skill declared by the plan (e.g. `iru-java-code-one-task-group`, `iru-dotnet-code-one-task-group`) — falling back to implementing a task directly when the plan names no matching key. Runs autonomously — user intervention is limited to unresolved errors, decisions only the user can make, or permissions the allowed-tools list doesn't cover. Warns the user up front if implementation_plan.md already exists at the repository root (expected only when resuming an interrupted prior run). On successful completion, updates the project's Antora documentation (via the `iru-update-docs` skill) to reflect all the changes the plan made, archives the plan to .archive/, asks the user whether to open follow-up tasks or new tickets (on whichever tracker the plan originated from — a GitHub issue via `gh issue create`, or a Jira ticket via the `iru-create-jira-ticket` skill) if overall code quality isn't excellent, and asks for a final review of all code and documentation changes. Invoke as `/iru-code` once implementation_plan.md exists (e.g. produced by the `iru-plan` skill).
 model: sonnet
 allowed-tools: Read Edit Write Bash(mvn *) Bash(detect-secrets *) Bash(git status *) Bash(git diff *) Bash(git log *) Bash(find *) Bash(grep *) Bash(ls *) Bash(mkdir *) Bash(mv *) Bash(date *) Bash(gh issue create *) TaskCreate TaskUpdate TaskList TaskGet Skill Agent
 ---
@@ -204,8 +204,24 @@ key found in the plan:
    - add follow-up task(s) to `implementation_plan.md` to fix the remaining issues before this run archives it
      (if chosen, add the task(s) — as a new group — with empty checkboxes and return to Step 4 to implement them —
      do not archive yet), or
-   - file the remaining issues as new GitHub issues instead (`gh issue create`, one issue per distinct problem
-     or logical group, with enough detail — file, line, tool, message — to act on later), or
+   - file the remaining issues as new tickets instead — on whichever tracker the plan itself originated from, so
+     follow-up work lands next to the ticket that spawned it rather than always defaulting to GitHub. Determine
+     that origin the same way Step 9 will (check the "Task summary" section's `Source:` line, or any other clear
+     ticket reference in the plan):
+     - **Plan originated from a GitHub issue** (or no ticket origin is identifiable and this repository is
+       GitHub-hosted, per `iru-explore`'s Step 2 detection): file via `gh issue create`, one issue per distinct
+       problem or logical group, with enough detail (file, line, tool, message) to act on later.
+     - **Plan originated from a Jira ticket**: file via the `iru-create-jira-ticket` skill instead, once per
+       distinct problem or logical group — `Skill({skill: "iru-create-jira-ticket", args: "<file, line, tool,
+       message, and enough surrounding detail to act on later>"})`. Since this problem is already fully
+       characterized here, pass that detail directly as the skill's argument rather than letting it ask the user
+       for purpose/context from scratch; still let it show its drafted ticket for confirmation before filing,
+       per its own Step 4-equivalent review. If `iru-create-jira-ticket` reports it can't proceed (e.g. no Jira
+       MCP tool connected), fall back to asking the user (`AskUserQuestion`) whether to file on GitHub instead or
+       skip filing for now.
+     - **Origin can't be determined and the repository isn't GitHub-hosted either**: ask the user
+       (`AskUserQuestion`) which tracker to file to rather than guessing.
+     or
    - leave it as-is and proceed to archive without further action.
    Respect whichever the user picks; only proceed to Step 8 once this choice has been acted on (issues filed, or
    explicit acknowledgment to proceed as-is).
@@ -266,13 +282,22 @@ Only after Step 7 passes clean, with every task's checkbox checked, both the qua
 resolved, and Step 8's documentation update done:
 
 1. Determine an identifier for the archived filename:
-   - If the plan was grounded in a GitHub issue (check the "Task summary" section and the plan's origin for an
-     issue reference, e.g. "issue #42"), use that issue id.
-   - Otherwise, use the current timestamp: `date +%Y%m%d%H%M%S`.
+   - If the plan was grounded in a tracked ticket, check the "Task summary" section for a `Source:` line (per
+     `iru-plan`'s Step 6.1) or any other clear reference to the plan's origin, and use that ticket's id/key:
+     - A GitHub issue (e.g. "Source: GitHub issue #42", or just "issue #42") → use the bare issue number, `42`.
+     - A Jira ticket (e.g. "Source: Jira PROJ-123", or a bare key matching the `PROJECTKEY-ID` pattern — one or
+       more uppercase letters/digits starting with a letter, a hyphen, then digits) → use that key as-is,
+       `PROJ-123`. Jira keys already contain a hyphen, so keep the identifier intact rather than splitting on it.
+     - If the plan's origin is ambiguous (e.g. a older plan predating the `Source:` convention) but a ticket
+       reference is still clearly present somewhere in the plan, use your best judgment to extract it rather than
+       falling back to a timestamp.
+   - Otherwise (a manually described task with no ticket, or genuinely no identifiable reference), use the
+     current timestamp: `date +%Y%m%d%H%M%S`.
 2. Create the archive directory if it doesn't exist yet (`mkdir -p .archive`), then move the plan there, renamed
-   to embed that identifier: `mv implementation_plan.md .archive/implementation_plan_<issue_id>.md` (e.g.
-   `.archive/implementation_plan_42.md` or `.archive/implementation_plan_20260707153000.md`). The repository
-   root must no longer have an `implementation_plan.md` once this step completes successfully.
+   to embed that identifier: `mv implementation_plan.md .archive/implementation_plan_<ticket_id>.md` (e.g.
+   `.archive/implementation_plan_42.md` for a GitHub issue, `.archive/implementation_plan_PROJ-123.md` for a
+   Jira ticket, or `.archive/implementation_plan_20260707153000.md` with no ticket). The repository root must no
+   longer have an `implementation_plan.md` once this step completes successfully.
 3. Summarize for the user: which groups/tasks were completed, the files touched overall, the coverage achieved
    per task/class, the final code-quality outcome (excellent / follow-up filed / issues left as-is per Step 7),
    the final security outcome (clean / not run, since a resolved-but-triggered gate is otherwise indistinguishable

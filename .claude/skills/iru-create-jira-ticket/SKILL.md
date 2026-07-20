@@ -1,6 +1,6 @@
 ---
 name: iru-create-jira-ticket
-description: Draft and file a new Jira ticket that is ready to be picked up by the `/iru-issue`, `/iru-plan`, `/iru-code` flow. Runs the `iru-explore` skill first to ground the ticket in the actual codebase, then asks the user for the purpose of the task to be implemented, then asks for additional context (linked URLs, attached files/documents, related tickets) and folds whatever is provided into the ticket description. Determines the target Jira project and issue type (Bug/Story/Task/etc.) from the stated purpose and this Jira instance's actual configuration, drafts a summary and description (Summary, Context, Acceptance criteria, References), and shows the draft for confirmation before filing it via connected Jira MCP tools. Invoke as `/iru-create-jira-ticket` or `/iru-create-jira-ticket <short description>`. Stops early if no Jira MCP tool is connected — there is no CLI fallback the way GitHub has `gh`. Use when the user has an idea, bug report, or request that needs to become a well-formed, actionable Jira ticket before `/iru-issue` or `/iru-plan` can pick it up — not for tickets that already exist (nothing to file) or when the work should be tracked as a GitHub issue instead (use `iru-create-github-issue`).
+description: Draft and file a new Jira ticket that is ready to be picked up by the `/iru-issue`, `/iru-plan`, `/iru-code` flow. Runs the `iru-explore` skill first to ground the ticket in the actual codebase, then asks the user for the purpose of the task to be implemented, then asks for additional context (linked URLs, attached files/documents, related tickets, and an optional epic) and folds whatever is provided into the ticket description — an epic given is also explored for extra context (its description and child tickets) and assigned to the new ticket as its parent/epic link on creation. Also delegates to the `iru-jira-custom-context` skill for whatever organization-specific context that extension point has been set up to gather. Also asks for the task's due date (optional) and importance (trivial/minor/important/blocking — defaulting to minor, or to blocking when it reads as a bug/incident affecting production). Determines the target Jira project and issue type (Bug/Story/Task/etc.) from the stated purpose and this Jira instance's actual configuration, drafts a summary and description (Summary, Context, Acceptance criteria, Task details — due date, importance, and an estimated task difficulty from very easy to impossible based on everything gathered — References), and shows the draft for confirmation before filing it via connected Jira MCP tools. Invoke as `/iru-create-jira-ticket` or `/iru-create-jira-ticket <short description>`. Stops early if no Jira MCP tool is connected — there is no CLI fallback the way GitHub has `gh`. Use when the user has an idea, bug report, or request that needs to become a well-formed, actionable Jira ticket before `/iru-issue` or `/iru-plan` can pick it up — not for tickets that already exist (nothing to file) or when the work should be tracked as a GitHub issue instead (use `iru-create-github-issue`).
 model: sonnet
 ---
 
@@ -54,6 +54,7 @@ it is optional:
 - **Attached file(s) or documents** — screenshots, logs, specs, mockups (local paths).
 - **Related ticket(s) or issue(s)** — in this Jira project, another project, or a linked GitHub repository, that
   this depends on, relates to, or duplicates.
+- **Epic** — an optional Jira epic this ticket belongs to.
 
 Gather whatever is provided:
 
@@ -65,10 +66,54 @@ Gather whatever is provided:
   the reference in the drafted description is accurate — don't take the user's key on faith without checking it
   resolves to what they mean. A related **GitHub** issue, if mentioned, can be confirmed with `gh issue view
   <id> --json number,title,url,state` if `gh` is available; otherwise just record the reference as given.
+- **Epic**: if the user gives one, confirm it with the connected Jira MCP tools (fetch by key: summary,
+  description, status, labels/components, and URL) so it's a real epic and not a typo'd key. Then explore it the
+  same way `iru-explore` explores an epic found for an existing ticket: read its description in full and, if the
+  Jira MCP tools support listing an epic's child tickets, fetch those too (summary and status are enough unless
+  one's description is clearly load-bearing) — an epic frequently carries the overall goal, cross-cutting
+  constraints, or sibling tasks already completed or planned that should shape how this new ticket is scoped,
+  not just a label to attach. Note what it adds for Step 7's draft. This epic will be assigned to the new ticket
+  as its parent/epic link when it's created in Step 8 — if fetching it fails (no permission, deleted, not found),
+  tell the user and ask whether to proceed without it or provide a different key.
 
-If the user has none of these, proceed with just the purpose from Step 3 — this step is not a blocker.
+**Also delegate to the `iru-jira-custom-context` skill** for anything organization-specific beyond the above —
+that skill is an explicit extension point for whatever extra questions or lookups this Jira instance/organization
+needs (a required custom field, team/component ownership, a customer/account, an affected environment, a
+compliance/security classification, etc.) without this skill having to hardcode them:
 
-## Step 5 — Determine the target project and issue type
+```
+Skill({skill: "iru-jira-custom-context", args: "<the task's stated purpose from Step 3>"})
+```
+
+Fold whatever it returns into the draft the same way as the other optional context above (Step 7). If it reports
+nothing was provided (its own default catch-all question declined, or every extended question skipped as
+optional), proceed without it — this call is never a blocker, and if the skill itself isn't installed in this
+repository, skip it entirely and continue as if it had returned nothing.
+
+If the user has none of the context above, and `iru-jira-custom-context` returns nothing either, proceed with
+just the purpose from Step 3 — this step is not a blocker.
+
+## Step 5 — Ask for due date and importance
+
+Ask the user two more things before drafting — both help whoever triages or picks up the ticket later:
+
+- **Due date**: ask plainly (in open-ended text, not `AskUserQuestion`) whether there's a deadline or target date
+  for this work, making clear it's optional. Normalize whatever they give to an absolute date (e.g. "next Friday"
+  → the actual date) for the drafted ticket. If they have none, omit it from the draft entirely rather than
+  inventing one.
+- **Importance**: ask via `AskUserQuestion`, since this is a fixed choice, presenting all four levels — **Trivial**,
+  **Minor**, **Important**, **Blocking** — but mark whichever applies as the recommended default rather than
+  leaving all four unweighted:
+  - **Minor** is the default recommendation for an ordinary task.
+  - **Blocking** is the default recommendation instead when Step 3's purpose or Step 4's context describes a bug
+    or incident actively affecting a production environment — language like "production," "prod," "outage,"
+    "down," "customers affected," or "data loss," combined with broken/incorrect existing behavior (the same
+    "fails," "crash," "broken," "error when…" signal words used elsewhere in this pipeline to detect a bug).
+  This is guidance for the recommended option, not a silent assignment — always let the user confirm or pick a
+  different level. If they decline to pick (e.g. via "Other"), record importance as "not specified" rather than
+  applying the Minor default silently.
+
+## Step 6 — Determine the target project and issue type
 
 Jira tickets need a project and an issue type — unlike GitHub, where any issue lands in the one repository
 already in context.
@@ -85,10 +130,10 @@ already in context.
   don't invent an issue type name the project doesn't actually have configured. If the classification is
   genuinely ambiguous, or issue types can't be listed, ask the user via `AskUserQuestion` to pick.
 - **Labels/components** (optional): if the user's stated purpose or additional context clearly implicates an
-  existing label or component (check via the MCP tools if listing is supported), note it for Step 7; otherwise
+  existing label or component (check via the MCP tools if listing is supported), note it for Step 8; otherwise
   omit rather than guessing.
 
-## Step 6 — Draft the ticket
+## Step 7 — Draft the ticket
 
 Compose:
 
@@ -101,12 +146,31 @@ Compose:
     instead of cold.
   - **Acceptance criteria** — a short bulleted list, if the user gave any in Step 3 or they can be reasonably
     inferred from the purpose; omit this section entirely rather than inventing criteria that weren't discussed.
+  - **Task details** — a short bulleted list combining Step 5's answers with your own assessment:
+    - **Due date**: the date from Step 5, or omit this line entirely if none was given.
+    - **Importance**: the level chosen in Step 5 (trivial/minor/important/blocking), or "not specified."
+    - **Estimated difficulty**: your own assessment of how hard this task is to implement, grounded in everything
+      gathered so far — Step 2's exploration (how much of the codebase it touches, whether it needs new
+      abstractions or unfamiliar frameworks/dependencies, how many files/modules are affected), Step 3's purpose,
+      Step 4's context, and the epic's context if one was explored. Pick exactly one level from: very easy, easy,
+      medium, hard, very hard, extreme, impossible — then state it plus a one-line rationale (e.g. "medium —
+      touches two existing classes with clear precedent elsewhere in the codebase, no new dependencies"). Use
+      judgment based on the concrete codebase evidence, not a formula; reserve "impossible" for something that
+      genuinely isn't achievable as stated (e.g. it contradicts a hard technical constraint uncovered in Step 2),
+      not just "very hard."
   - **References** — any URLs, summarized file/document contents, and confirmed related-ticket/iru-issue links from
-    Step 4; omit if none were provided.
+    Step 4; omit if none were provided. If an epic was confirmed in Step 4, name it here too (key, summary, and a
+    one-line note of what context it added), separately from ordinary related tickets since it's also an
+    assignment, not just a reference.
+  - Anything `iru-jira-custom-context` returned in Step 4: fold each label/value pair it reported in as its own
+    line, either under **Task details** if it reads like a property of the ticket (team, environment, customer)
+    or under **References** if it reads like supporting material — whichever fits the specific pair better. Omit
+    this entirely if it returned nothing.
 
-Show the full drafted summary, description, project, and issue type to the user before taking any action.
+Show the full drafted summary, description, project, issue type, and — if one was given — the epic it will be
+assigned to, to the user before taking any action.
 
-## Step 7 — Confirm and create
+## Step 8 — Confirm and create
 
 Filing a ticket is visible to everyone with access to this Jira project — never do it without explicit
 confirmation. Ask the user via `AskUserQuestion`:
@@ -116,13 +180,15 @@ confirmation. Ask the user via `AskUserQuestion`:
 - **Don't create it** — stop here; the draft itself is the deliverable.
 
 If they confirm creation, use the connected Jira MCP tool(s) from Step 1 to create the ticket with the project,
-issue type, summary, description, and any labels/components determined above. Capture the created ticket's key
+issue type, summary, description, any labels/components determined above, and — if one was confirmed in Step 4 —
+the epic link/parent field set to that epic's key (the classic "Epic Link" field, or `parent` in team-managed/
+next-gen projects, whichever this Jira instance's create-issue tool expects). Capture the created ticket's key
 and URL from the tool's response.
 
 If ticket creation fails (e.g. a required field this Jira instance enforces wasn't supplied), surface the exact
 error to the user rather than retrying blindly, and ask how to proceed (supply the missing field, or stop).
 
-## Step 8 — Report
+## Step 9 — Report
 
 Give the user the ticket key and URL, and tell them the ticket is now ready to be picked up: `/iru-issue <key>` to
 kick off branch creation, exploration, planning, implementation, and PR creation in one pass, or `/iru-plan <key>`

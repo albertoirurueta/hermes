@@ -1,6 +1,6 @@
 ---
 name: iru-issue
-description: End-to-end kickoff for a tracked ticket — a GitHub issue or a Jira ticket, auto-detected like `iru-explore` — requires a ticket ID, unlike `iru-explore`/`iru-plan` this skill stops if none is given. Fetches the ticket, classifies it as a feature or a hotfix from its labels/issue-type/content, creates a `feature/<ticket-id>` or `hotfix/<ticket-id>` branch off the current branch, then runs the `iru-explore` and `iru-plan` skills for that ticket. Once a reviewable `implementation_plan.md` exists, asks whether to hand off implementation to the `iru-code` skill (run in an isolated sub-agent) or stop for manual review; once implementation is done, pushes the branch, opens a pull request (using whichever tooling matches the repository's host — GitHub, Bitbucket, Azure DevOps, or TFS — as detected by `iru-explore`) back to the branch `/iru-issue` was run from, uses the `iru-pr-description` skill to fill in its description, then runs the `iru-pr-review` skill (passing both the new PR's id and the ticket id) to leave review comments on it. If `iru-code`'s security gate (`iru-check-security`) ever flags a new or newly-unaudited secret during implementation, this skill stops instead — it warns the user with the specifics and never pushes the branch or opens a PR for that run, even if `iru-code` itself went on to resolve the gate and finish. Invoke as `/iru-issue <ticket-id>` where `<ticket-id>` is either a GitHub issue ID (e.g. `42`) or a Jira key (e.g. `PROJ-123`). Use when starting work on a tracked ticket and you want branch creation, exploration, planning, implementation, PR creation, and an initial code review done in one pass.
+description: End-to-end kickoff for a tracked ticket — a GitHub issue or a Jira ticket, auto-detected like `iru-explore` — requires a ticket ID, unlike `iru-explore`/`iru-plan` this skill stops if none is given. Fetches the ticket, classifies it as a feature or a hotfix from its labels/issue-type/content, creates a `feature/<ticket-id>` or `hotfix/<ticket-id>` branch off the current branch, then runs the `iru-explore` and `iru-plan` skills for that ticket. Once a reviewable `implementation_plan.md` exists, asks whether to hand off implementation to the `iru-code` skill (run in an isolated sub-agent) or stop for manual review; once implementation is done, attaches the archived implementation plan back onto the original ticket (as a GitHub issue comment, or a Jira attachment/comment) for future context if one was actually archived, skipping that step otherwise, then pushes the branch, opens a pull request (using whichever tooling matches the repository's host — GitHub, Bitbucket, Azure DevOps, or TFS — as detected by `iru-explore`) back to the branch `/iru-issue` was run from, uses the `iru-pr-description` skill to fill in its description, then runs the `iru-pr-review` skill (passing both the new PR's id and the ticket id) to leave review comments on it. If `iru-code`'s security gate (`iru-check-security`) ever flags a new or newly-unaudited secret during implementation, this skill stops instead — it warns the user with the specifics and never pushes the branch or opens a PR for that run, even if `iru-code` itself went on to resolve the gate and finish. Invoke as `/iru-issue <ticket-id>` where `<ticket-id>` is either a GitHub issue ID (e.g. `42`) or a Jira key (e.g. `PROJ-123`). Use when starting work on a tracked ticket and you want branch creation, exploration, planning, implementation, PR creation, and an initial code review done in one pass.
 model: sonnet
 ---
 
@@ -95,7 +95,7 @@ branch prefix in Step 4.
 
 - Capture the current branch name first (`git branch --show-current`) and remember it as `<base-branch>` — this is
   the branch `/iru-issue` was invoked from (typically `develop`, `main`, or `master`), and is the destination the pull
-  request in Step 7 will target.
+  request in Step 8 will target.
 - Compute the branch name: `feature/<ticket-id>` if Step 3 classified it as a feature, `hotfix/<ticket-id>` if a
   hotfix.
 - Check it doesn't already exist locally or on `origin` (`git branch --list <branch-name>`, `git ls-remote --heads
@@ -113,7 +113,7 @@ Run, in order, waiting for each to finish before starting the next:
 2. `Skill({skill: "iru-plan", args: "<ticket-id>"})`
 
 `iru-explore`'s own Step 2 detects and reports which platform hosts this repository (GitHub, Bitbucket, Azure DevOps,
-or TFS) as part of its "Tech stack" summary — Step 7 below relies on that detection instead of re-deriving it or
+or TFS) as part of its "Tech stack" summary — Step 8 below relies on that detection instead of re-deriving it or
 assuming GitHub.
 
 `iru-plan`'s own Step 2 already checks whether exploration for this ticket happened earlier in the conversation and
@@ -128,14 +128,14 @@ here and surface that to the user rather than pushing ahead to Step 6 with an in
 Once `implementation_plan.md` exists at the repository root, ask the user via `AskUserQuestion`:
 
 - **Proceed automatically with the `iru-code` skill** — hands off implementation now; a pull request is opened
-  automatically once it finishes cleanly (Step 7) — unless `iru-code`'s security gate ever fires during the run, in
+  automatically once it finishes cleanly (Step 8) — unless `iru-code`'s security gate ever fires during the run, in
   which case this skill stops and warns the user instead of pushing anything (see below).
 - **Review manually first** — the user reads/edits `implementation_plan.md` themselves and runs `/iru-code` later,
   whenever they're ready.
 
 Handle the choice as follows:
 
-- **Review manually**: stop here (skip Step 7). Tell the user the branch that was created, that
+- **Review manually**: stop here (skip Steps 7 and 8). Tell the user the branch that was created, that
   `implementation_plan.md` is ready for review at the repository root, and that once they've run `/iru-code`
   themselves and are happy with the result, they can invoke the `iru-pr-description` skill (or ask you to) to push the
   branch and open a pull request back to `<base-branch>`.
@@ -143,8 +143,8 @@ Handle the choice as follows:
   exploration/planning transcript into `iru-code`'s execution would waste context and risk it anchoring on
   intermediate exploration detail instead of the finished plan. Delegate the entire `iru-code` run to the
   `iru-isolated-skill-executor` agent rather than running it inline, since it starts from a fresh context by
-  construction and — unlike clearing this conversation directly — lets this skill keep running afterward to open
-  the PR in Step 7:
+  construction and — unlike clearing this conversation directly — lets this skill keep running afterward to attach
+  the archived plan to the ticket and open the PR (Steps 7 and 8):
 
   ```
   Agent({
@@ -160,24 +160,64 @@ Handle the choice as follows:
   })
   ```
 
-  Wait for the sub-agent to finish (`run_in_background: false` — Step 7 needs its outcome before opening a PR).
-  If it reports a blocker instead of completion (e.g. `iru-code` stopped for a decision only the user can make, or a
-  build stayed broken), surface that to the user and stop here — do not proceed to Step 7 against unfinished or
-  broken work.
+  Wait for the sub-agent to finish (`run_in_background: false` — Step 7 needs its outcome before attaching the
+  plan, and Step 8 needs it before opening a PR). If it reports a blocker instead of completion (e.g. `iru-code`
+  stopped for a decision only the user can make, or a build stayed broken), surface that to the user and stop
+  here — do not proceed to Step 7 or Step 8 against unfinished or broken work (an incomplete run also won't have
+  reached `iru-code`'s own archiving step, so Step 7 would have nothing to attach anyway).
 
   **If the sub-agent reports that the security gate ever fired** — regardless of whether `iru-code` went on to
   resolve it and finish cleanly — treat this as a hard stop for this skill too, distinct from an ordinary
-  blocker: do not proceed to Step 7. A branch that ever had a secret flagged on it is not one this skill should
-  push or open a pull request for automatically, since an accepted-as-false-positive judgment call or an
-  incompletely-rotated credential could otherwise get pushed to a shared remote without further human review.
-  Warn the user explicitly: state what `iru-check-security` flagged (file, line, secret type, from the sub-agent's
-  report), that the branch `<branch-name>` was created and implementation finished locally, but that this skill
-  is **not** pushing the branch or opening a PR. Tell them to verify the finding themselves (confirm the secret
-  was actually removed/rotated, or is genuinely a false positive per `iru-check-security`'s own audit step), and that
-  once satisfied it's safe they can push and open the PR themselves, or re-invoke `iru-pr-description` to do so. Then
-  go to Step 8 to report, skipping Step 7 entirely.
+  blocker: do not proceed to Step 7 or Step 8. A branch that ever had a secret flagged on it is not one this skill
+  should push, open a pull request for, or post ticket comments/attachments about automatically, since an
+  accepted-as-false-positive judgment call or an incompletely-rotated credential could otherwise get exposed —
+  pushed to a shared remote, or pasted into a ticket comment — without further human review. Warn the user
+  explicitly: state what `iru-check-security` flagged (file, line, secret type, from the sub-agent's report), that
+  the branch `<branch-name>` was created and implementation finished locally, but that this skill is **not**
+  pushing the branch, opening a PR, or attaching anything to the ticket. Tell them to verify the finding
+  themselves (confirm the secret was actually removed/rotated, or is genuinely a false positive per
+  `iru-check-security`'s own audit step), and that once satisfied it's safe they can push and open the PR
+  themselves, or re-invoke `iru-pr-description` to do so. Then go to Step 9 to report, skipping Steps 7 and 8
+  entirely.
 
-## Step 7 — Push the branch and open the pull request
+## Step 7 — Attach the archived implementation plan to the ticket
+
+Once `iru-code` (invoked in Step 6) reports successful completion, check whether it archived
+`implementation_plan.md` to `.archive/` — `iru-code`'s own Step 9 only archives once every task's checkbox is
+checked and both its quality and security gates resolved, and names the file after the ticket this skill is
+already working on, per that step's naming convention: the bare issue number for a GitHub issue (e.g.
+`implementation_plan_42.md`), or the Jira key as-is for a Jira ticket (e.g. `implementation_plan_PROJ-123.md`).
+
+```bash
+ls .archive/implementation_plan_<ticket-id>.md
+```
+
+- **Missing** (no matching file — e.g. `iru-code` used a timestamp instead because it couldn't identify the
+  ticket's origin, even though this skill knows it): skip this step entirely and continue to Step 8 — there is
+  nothing to attach, and this is not worth surfacing as an error on its own.
+- **Present**: attach it to the original ticket, so that a future exploration of this same ticket — e.g.
+  `iru-explore`'s own comment-reading step, or someone opening the ticket cold to use it as precedent for a new
+  task — has the full implementation plan available as context, not just the ticket's original description:
+  - **GitHub issue**: GitHub's issue API has no generic file-attachment endpoint, so post the plan's content as a
+    comment instead — this keeps it readable directly on the ticket, including for anyone who later fetches it
+    via `iru-explore`'s own comment-reading step:
+    ```bash
+    gh issue comment <ticket-id> --body-file .archive/implementation_plan_<ticket-id>.md
+    ```
+    If `gh` is unavailable, use the equivalent GitHub MCP comment tool instead, passing the archived file's full
+    content as the comment body.
+  - **Jira ticket**: search for a connected Jira MCP tool that supports adding an attachment to a ticket
+    (`ToolSearch` with a query like "jira attachment" or "jira upload"). If one is found, use it to attach the
+    archived file itself. If no attachment-capable tool is available but a comment tool is, fall back to posting
+    the plan's content as a comment instead (same rationale as the GitHub case), and note in Step 9's report that
+    it was added as a comment rather than a true attachment, for lack of an attachment-capable tool.
+  - If neither an attachment nor a comment can be posted by any available means (e.g. no Jira MCP tool at all is
+    connected), tell the user this step couldn't be completed and why, then continue to Step 8 — this is a
+    best-effort enrichment, not a blocker for opening the pull request.
+- Note the outcome (attached, added as comment instead, or skipped and why) so it can be folded into Step 9's
+  report.
+
+## Step 8 — Push the branch and open the pull request
 
 Only reached when Step 6's sub-agent reports successful completion **and** its security gate never fired — never
 push or open a PR off the back of a run where `iru-check-security` ever flagged something, per Step 6.
@@ -217,7 +257,7 @@ push or open a PR off the back of a run where `iru-check-security` ever flagged 
    draft a description from the actual diff, and ask whether to replace the placeholder body — confirm yes so the
    real description lands.
 5. After `iru-pr-description` finishes, check the PR body still references the ticket (a "Closes #<ticket-id>." or
-   "Refs <ticket-id>." line, per whichever convention Step 7.3 used) with the same host tooling used to create it
+   "Refs <ticket-id>." line, per whichever convention Step 8.3 used) with the same host tooling used to create it
    (e.g. `gh pr view <number> --json body` for GitHub) — `iru-pr-description` fully replaces the body with its own
    draft and may drop the placeholder's ticket reference. If the reference is gone, append it back with that same
    tooling (e.g. for GitHub: `gh pr edit <number> --body "$(gh pr view <number> --json body -q .body)"$'\n\n'"Closes
@@ -225,26 +265,27 @@ push or open a PR off the back of a run where `iru-check-security` ever flagged 
 6. Invoke `Skill({skill: "iru-pr-review", args: "<number> <ticket-id>"})` to get an initial code review left on the PR
    — passing the ticket id explicitly (rather than relying on `iru-pr-review`'s own body/title detection) since this
    skill already knows with certainty which ticket the new PR closes. `iru-pr-review` runs its own confirmation before
-   posting anything, so no separate confirmation is needed here; wait for it to finish before moving to Step 8.
+   posting anything, so no separate confirmation is needed here; wait for it to finish before moving to Step 9.
    If it reports it couldn't proceed (e.g. no PR could be fetched, which shouldn't happen since it was just
    created), surface that to the user rather than treating it as a hard failure of this skill — the PR itself is
    still open and usable.
 
-## Step 8 — Report
+## Step 9 — Report
 
 Summarize for the user: the ticket ID and title, the classification (feature/hotfix) and why, the branch created
 and its base, and the final outcome — one of:
 
 - manual review pending (Step 6), or
 - the security gate fired during implementation (Step 6): the sub-agent's implementation summary, what
-  `iru-check-security` flagged, and the explicit reminder that the branch was **not** pushed and no PR was opened —
-  restate what the user needs to verify before doing so themselves, or
-- the sub-agent's implementation summary, the PR URL, confirmation the ticket is linked, and `iru-pr-review`'s outcome
-  (findings posted, or the drafted review if the user declined to post) (Step 7).
+  `iru-check-security` flagged, and the explicit reminder that the branch was **not** pushed, no PR was opened,
+  and nothing was attached to the ticket — restate what the user needs to verify before doing so themselves, or
+- the sub-agent's implementation summary, whether the archived plan was attached to the ticket (or added as a
+  plain comment, or skipped, per Step 7), the PR URL, confirmation the ticket is linked, and `iru-pr-review`'s
+  outcome (findings posted, or the drafted review if the user declined to post) (Step 8).
 
-If Step 7 ran, close with an explicit warning, not just a passing mention: the pull request was opened **as a
+If Step 8 ran, close with an explicit warning, not just a passing mention: the pull request was opened **as a
 draft** and still needs the user's own review before it's marked ready and merged — `iru-pr-review`'s automated pass
-does not substitute for that. Include the PR link, obtained via whichever host tooling created it in Step 7 — e.g.
+does not substitute for that. Include the PR link, obtained via whichever host tooling created it in Step 8 — e.g.
 `gh pr create`'s own output or `gh pr view <number> --json url -q .url` for GitHub; the API response's web link for
 Bitbucket; `az repos pr create`'s own output or `az repos pr show --id <number> --query "_links.web.href" -o tsv`
 for Azure DevOps/TFS — so the user can open it directly.

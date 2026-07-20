@@ -1,6 +1,6 @@
 ---
 name: iru-explore
-description: Explore this repository codebase, optionally grounded in a specific GitHub issue or Jira ticket used as the task to investigate, and detect the programming language(s) and framework(s) in play — both in the existing codebase and in the requested change — plus whether Antora documentation exists and where, which platform hosts the repository (GitHub, Bitbucket, Azure DevOps, or TFS), and whether a `.archive/` directory holds implementation plans from previously resolved tasks that resemble the current one. Invoke as `/iru-explore <ticket-id>` where `<ticket-id>` is either a GitHub issue ID (e.g. `42`) or a Jira key (e.g. `PROJ-123`) — the skill auto-detects which. If invoked as `/iru-explore` with no argument, ask the user for a ticket ID; if they decline or give none, just explore the current codebase. Looks up GitHub issues with the `gh` CLI (or GitHub MCP tools if `gh` is unavailable) and Jira tickets via any connected Jira MCP tools, and, if a documentation MCP (e.g. Confluence, Notion) is connected, searches it for pages relevant to the ticket or codebase for extra context. Use for onboarding, understanding "what would it take to fix issue #N"/"ticket PROJ-123", or getting oriented before planning work. Its "Tech stack" and "Related past implementation plans" findings (languages/frameworks, Antora docs location, repository host, relevant archived plans) are meant to be reused by later skills in the same conversation (e.g. `iru-plan`, `iru-code`, `iru-update-docs`, code review, branch/PR creation) to pick language/framework-appropriate flows, best practices, the right git-platform tooling, and proven prior plan structure.
+description: Explore this repository codebase, optionally grounded in a specific GitHub issue or Jira ticket used as the task to investigate, and detect the programming language(s) and framework(s) in play — both in the existing codebase and in the requested change — plus whether Antora documentation exists and where, which platform hosts the repository (GitHub, Bitbucket, Azure DevOps, or TFS), and whether a `.archive/` directory holds implementation plans from previously resolved tasks that resemble the current one. Works even when the current working directory isn't a git repository at all — it warns the user that git-remote-dependent tooling (e.g. `gh` inferring an owner/repo, `git log` history) won't work, then keeps going with whatever sources don't need one: a Jira ticket, a connected documentation MCP, and any files actually present in the working directory. Invoke as `/iru-explore <ticket-id>` where `<ticket-id>` is either a GitHub issue ID (e.g. `42`) or a Jira key (e.g. `PROJ-123`) — the skill auto-detects which. If invoked as `/iru-explore` with no argument, ask the user for a ticket ID; if they decline or give none, just explore the current codebase. Looks up GitHub issues with the `gh` CLI (or GitHub MCP tools if `gh` is unavailable) and Jira tickets via any connected Jira MCP tools — for a Jira ticket, also fetches its epic and any linked/related tickets (one hop out), and downloads and reads any `implementation_plan_*.md` attached to the ticket, its epic, or its linked tickets (the naming convention `iru-code`/`iru-issue` archive and attach a completed plan under), for additional context — and, if a documentation MCP (e.g. Confluence, Notion) is connected, searches it for pages relevant to the ticket or codebase for extra context. Use for onboarding, understanding "what would it take to fix issue #N"/"ticket PROJ-123", or getting oriented before planning work. Its "Tech stack" and "Related past implementation plans" findings (languages/frameworks, Antora docs location, repository host, relevant archived plans) are meant to be reused by later skills in the same conversation (e.g. `iru-plan`, `iru-code`, `iru-update-docs`, code review, branch/PR creation) to pick language/framework-appropriate flows, best practices, the right git-platform tooling, and proven prior plan structure.
 model: opus
 ---
 
@@ -31,6 +31,20 @@ The skill may be invoked with a ticket ID as its argument (e.g. `/iru-explore 42
 Determine which platform hosts this repository, so later skills that operate on it (branch creation, pull/merge
 requests, commit history, CI status, etc.) know which CLI/API to use instead of assuming GitHub by default.
 
+**First, confirm the current working directory is actually inside a git repository at all**
+(`git rev-parse --is-inside-work-tree`, or check for a `.git` directory/file up the tree) — this skill must still
+be useful when it isn't, e.g. run from a plain folder of docs, a fresh checkout-in-progress, or a directory that
+was never `git init`'d:
+
+- **Not a git repository**: tell the user plainly, once, that no repository was detected in the current working
+  directory — record `Repository host: none — not a git repository` for Step 7 and skip the rest of this step
+  (there is no remote to inspect). This also means any git-dependent tooling later in this skill (`gh` inferring
+  an owner/repo from the local remote, `git log` for recent history in Step 4) will not work; note that
+  explicitly too, as a warning, not a hard stop — continue exploring with whatever sources don't need a
+  repository: a Jira ticket (Step 3) fetched via Jira MCP tools, a documentation MCP (Step 6), and any files
+  actually present in the working directory (Step 4 — Antora docs, `CLAUDE.md`/`README`, source files, all work
+  the same whether or not the directory happens to be a git repo).
+- **Is a git repository**: continue below as normal.
 - Get the remote URL: `git remote get-url origin` (fall back to `git remote -v`, or to whichever remote the
   current branch tracks, if `origin` isn't the remote in use).
 - Match the URL against known host patterns:
@@ -70,21 +84,33 @@ Determine the repository (owner/name) from the git remote, e.g.:
 gh repo view --json owner,name -q '.owner.login + "/" + .name'
 ```
 
-Then fetch the issue with the `gh` CLI:
+- **If Step 2 found no git repository at all** (or a repository with no remote configured), `gh repo view` has
+  nothing to infer owner/repo from and will fail — this is expected, not a bug. Ask the user for the target
+  repository explicitly (`owner/repo`), then fetch with `--repo` supplied directly:
+  ```bash
+  gh issue view <issue-id> --repo <owner/repo> --json number,title,body,labels,comments,state,url
+  ```
+  If they don't know it or decline, warn them that the GitHub issue can't be fetched without a repository
+  context, then continue with a codebase-only or Jira-only exploration (Step 4 onward) rather than stopping the
+  whole skill — a missing repository should degrade this one lookup, not the rest of the exploration.
+
+Otherwise, fetch the issue with the `gh` CLI directly:
 
 ```bash
 gh issue view <issue-id> --json number,title,body,labels,comments,state,url
 ```
 
 If `gh` is not installed/authenticated, search for GitHub MCP tools instead (`ToolSearch` with a query like
-"github issue") and use those to fetch the same information. If neither is available, tell the user and continue
-with a codebase-only exploration (Step 4), noting the issue could not be retrieved.
+"github issue") and use those to fetch the same information — these may still work without a local repository if
+the tool takes an explicit owner/repo parameter rather than inferring it from `git remote`. If neither is
+available, tell the user and continue with a codebase-only exploration (Step 4), noting the issue could not be
+retrieved.
 
 ### Jira ticket
 
 Search for connected Jira MCP tools (`ToolSearch` with a query like "jira issue" or "jira ticket"). If one or
 more are found, use them to fetch the ticket by key: summary/title, description, issue type, status, labels/
-components, comments, and URL.
+components, comments, URL, and its issue links (`issuelinks`, plus the epic/parent relationship).
 
 If no Jira MCP tool is available, tell the user plainly that this environment has no Jira connection, then ask
 (via `AskUserQuestion`) whether to:
@@ -95,16 +121,55 @@ If no Jira MCP tool is available, tell the user plainly that this environment ha
 Don't guess at Jira REST endpoints or attempt to `WebFetch` a Jira URL directly — Jira instances are normally
 authenticated, and an unauthenticated fetch will just fail or return a login page.
 
+**Also fetch the epic and any linked tickets, one hop out**, since a single ticket's own fields often omit
+context that lives on its epic or on tickets it references — a plan grounded only in the leaf ticket can miss a
+constraint the epic states once for all its children, or misunderstand what "blocks"/"relates to" actually means
+without reading the other side of that link:
+
+- **Epic**: check whether the ticket belongs to an epic — the classic "Epic Link" field, or the `parent` field
+  in team-managed/next-gen projects. If it does, fetch that epic ticket too (summary, description, status, and
+  its own labels/components) — an epic frequently carries the overall goal, cross-cutting acceptance criteria, or
+  links to design docs that no individual child ticket repeats.
+- **Linked/related tickets**: for each entry in the ticket's `issuelinks` (e.g. "relates to", "blocks", "is
+  blocked by", "duplicates", "clones") and any subtasks, fetch that linked ticket's summary, description, and
+  status — enough to know concretely what the link means for this task, not just that it exists. Skip fetching
+  its own comments unless the summary/description alone leaves the relationship unclear.
+- Keep this to one hop from the primary ticket — don't recursively follow the epic's or a linked ticket's own
+  links.
+- If fetching the epic or a linked ticket fails (no permission, deleted, not found), note that briefly and
+  continue with what was retrieved rather than blocking the whole exploration on it.
+
+**Also check for attached implementation plans**, on the ticket itself and on its epic/linked tickets fetched
+above: list each ticket's attachments (via the same Jira MCP tool set — `ToolSearch` "jira attachment" if the
+issue-fetch tool doesn't already return an attachment list) and look for any file named `implementation_plan_*.md`.
+This is exactly the naming convention `iru-code`'s own archiving step uses, and `iru-issue` attaches that archived
+file back onto the ticket it resolved (per its own Step 7) — so a match here is a previously-completed
+implementation plan for work the ticket-filer or a prior agent run judged similar or related, travelling with the
+ticket itself rather than needing a local `.archive/` in this checkout.
+
+- Download and read each matched attachment in full — it's the same kind of precedent this skill's `.archive/`
+  check in Step 4 looks for locally, just sourced from the ticket instead of the current repository.
+- If more than one is attached (e.g. an epic with several resolved child tickets, each having attached its own
+  plan), read all of them — they're typically small and each is a distinct, useful precedent.
+- If the connected Jira MCP tool set has no way to list or download attachment content, note that explicitly and
+  continue without it — this is a best-effort enrichment, not a blocker for the rest of exploration.
+- If nothing matches `implementation_plan_*.md` on the ticket or its epic/linked tickets, note that briefly too
+  rather than silently omitting the check.
+
 ### Either way
 
-Read the ticket's title, body/description, labels, and any comments that clarify scope or add constraints. Note
-explicitly: what behavior is requested/reported, any acceptance criteria, and any files, classes, error messages,
-languages, frameworks, or platforms mentioned.
+Read the ticket's title, body/description, labels, and any comments that clarify scope or add constraints —
+plus, for a Jira ticket, the epic's and any linked tickets' summaries/descriptions, and any downloaded
+`implementation_plan_*.md` attachments, fetched above. Note explicitly: what behavior is requested/reported, any
+acceptance criteria (including any stated only on the epic), and any files, classes, error messages, languages,
+frameworks, or platforms mentioned — across the primary ticket, whatever epic/linked tickets were fetched, and
+any attached implementation plans read.
 
 ## Step 4 — Explore the codebase
 
-This step must work generically on any repository — don't assume a language, framework, or prior familiarity
-with the project. Start from first principles each time:
+This step must work generically on any repository — and equally on a working directory that per Step 2 isn't a
+git repository at all — don't assume a language, framework, or prior familiarity with the project. Start from
+first principles each time; every check below is file-based and works the same whether or not `.git` exists.
 
 - Get the lay of the land first: check for a `CLAUDE.md`, `README`, or `AGENTS.md` (use as a starting index,
   never as a substitute for reading the actual files, and treat it skeptically if it looks stale), list the
@@ -141,8 +206,9 @@ tour. Concretely:
 
 **If there is no ticket** (declined or unavailable), do a general orientation pass instead: map out the overall
 architecture — the major components/modules, how they depend on each other, key abstractions and design
-patterns in use, and anything notable in recent git history (`git log --oneline -20`) that suggests active
-areas of work.
+patterns in use, and, if Step 2 found this is actually a git repository, anything notable in recent git history
+(`git log --oneline -20`) that suggests active areas of work. Skip the git-history check entirely (not a
+failure, just nothing to check) if Step 2 found no git repository.
 
 ## Step 5 — Detect the technology stack
 
@@ -236,8 +302,12 @@ Summarize for the user in plain text (no file output unless asked):
   - Languages/frameworks (requested change): <e.g. Kotlin, Jetpack Compose — matches android/ module>
   - Antora docs: <e.g. docs/ (antora.yml component "my-lib") — or "none found">
   - Repository host: <e.g. GitHub (github.com/org/repo) — or Bitbucket / Azure DevOps / TFS, with base URL — or
-    "no remote configured">
+    "no remote configured" — or "none — not a git repository">
   ```
+  If Step 2 found the working directory isn't a git repository at all, use that last form and add a one-line
+  warning restating what that disabled this run (git-remote-dependent tooling like unscoped `gh issue view`,
+  and `git log`-based history in Step 4) versus what still ran normally (Jira, a documentation MCP, and any
+  file-based checks in Step 4/5).
   If the repo has multiple modules/stacks, break the codebase lines out per module. If the requested change
   introduces something new (per Step 5), say so explicitly here rather than folding it silently into the
   existing list. Always state the Antora docs and Repository host lines, even when the answer is "none found"/"no
@@ -245,13 +315,19 @@ Summarize for the user in plain text (no file output unless asked):
 - If Step 6 found a connected documentation MCP, include a **Related documentation** section listing each
   relevant page found (title, link, one-line summary) — or a one-line note that none was relevant/connected.
   This is what a later `iru-plan` step should draw on for additional context beyond the codebase and ticket.
-- Include a **Related past implementation plans** section covering the `.archive/` check from Step 4: name any
-  archived plan(s) used as precedent (file name, its original topic, and what carries over — task breakdown,
-  granularity, or approach), or state explicitly that `.archive/` doesn't exist or nothing in it was relevant.
-  This is what a later `iru-plan` step should draw on to ground a new plan's structure in a proven prior one.
+- Include a **Related past implementation plans** section covering both the `.archive/` check from Step 4 and,
+  for a Jira ticket, the attached-plan check from Step 3: name any archived or downloaded plan(s) used as
+  precedent (file name/source — local `.archive/` vs. downloaded from the ticket/epic/linked ticket — its
+  original topic, and what carries over — task breakdown, granularity, or approach), or state explicitly that
+  neither source had anything relevant (`.archive/` doesn't exist or nothing in it was relevant, and no
+  `implementation_plan_*.md` attachment was found). This is what a later `iru-plan` step should draw on to ground
+  a new plan's structure in a proven prior one.
 - If a ticket was explored: restate the task in your own words, list the specific files/classes/methods
   relevant to it, explain how the current code behaves in the area the ticket touches, and flag anything
-  ambiguous or missing from the ticket that would block implementation.
+  ambiguous or missing from the ticket that would block implementation. For a Jira ticket, also name its epic
+  (if any) and any linked/related tickets fetched in Step 3, with a one-line summary of what each adds (a shared
+  constraint from the epic, what a "blocks"/"relates to" link actually implies here) — or state plainly that the
+  ticket has no epic and no links if that's the case.
 - If codebase-only: summarize the architecture areas covered and anything notable found (e.g. inconsistencies,
   undocumented behavior, missing test coverage) relevant to general orientation.
 - Do not propose an implementation plan or start editing code — if the user wants that next, they will ask for
