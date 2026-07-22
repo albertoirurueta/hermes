@@ -1,6 +1,6 @@
 ---
 name: iru-create-jira-ticket
-description: Draft and file a new Jira ticket that is ready to be picked up by the `/iru-issue`, `/iru-plan`, `/iru-code` flow. Runs the `iru-explore` skill first to ground the ticket in the actual codebase, then asks the user for the purpose of the task to be implemented, then asks for additional context (linked URLs, attached files/documents, related tickets, and an optional epic) and folds whatever is provided into the ticket description — an epic given is also explored for extra context (its description and child tickets) and assigned to the new ticket as its parent/epic link on creation. Also delegates to the `iru-jira-custom-context` skill for whatever organization-specific context that extension point has been set up to gather. Also asks for the task's due date (optional) and importance (trivial/minor/important/blocking — defaulting to minor, or to blocking when it reads as a bug/incident affecting production). Determines the target Jira project and issue type (Bug/Story/Task/etc.) from the stated purpose and this Jira instance's actual configuration, drafts a summary and description (Summary, Context, Acceptance criteria, Task details — due date, importance, and an estimated task difficulty from very easy to impossible based on everything gathered — References), and shows the draft for confirmation before filing it via connected Jira MCP tools. Invoke as `/iru-create-jira-ticket` or `/iru-create-jira-ticket <short description>`. Stops early if no Jira MCP tool is connected — there is no CLI fallback the way GitHub has `gh`. Use when the user has an idea, bug report, or request that needs to become a well-formed, actionable Jira ticket before `/iru-issue` or `/iru-plan` can pick it up — not for tickets that already exist (nothing to file) or when the work should be tracked as a GitHub issue instead (use `iru-create-github-issue`).
+description: Draft and file a new Jira ticket that is ready to be picked up by the `/iru-issue`, `/iru-plan`, `/iru-code` flow. Runs the `iru-explore` skill first to ground the ticket in the actual codebase, then asks the user for the purpose of the task to be implemented, then asks for additional context (linked URLs, attached files/documents, related tickets, and an optional epic) and folds whatever is provided into the ticket description — an epic given is also explored for extra context (its description and child tickets) and assigned to the new ticket as its parent/epic link on creation. Any provided file/document is not just read for context but actually attached to the created ticket: once created, each file is uploaded via the connected Jira MCP tools' native attachment support (Jira's `issue/{key}/attachments` endpoint accepts any file type, unlike GitHub's issue API); if no attachment-capable Jira MCP tool is connected, small text-based files are embedded inline in the description instead, and other files are described without being attached. Also delegates to the `iru-jira-custom-context` skill for whatever organization-specific context that extension point has been set up to gather. Also asks for the task's due date (optional) and importance (trivial/minor/important/blocking — defaulting to minor, or to blocking when it reads as a bug/incident affecting production). Determines the target Jira project and issue type (Bug/Story/Task/etc.) from the stated purpose and this Jira instance's actual configuration, drafts a summary and description (Summary, Context, Acceptance criteria, Task details — due date, importance, and an estimated task difficulty from very easy to impossible based on everything gathered — References), and shows the draft for confirmation before filing it via connected Jira MCP tools. Invoke as `/iru-create-jira-ticket` or `/iru-create-jira-ticket <short description>`. Stops early if no Jira MCP tool is connected — there is no CLI fallback the way GitHub has `gh`. Use when the user has an idea, bug report, or request that needs to become a well-formed, actionable Jira ticket before `/iru-issue` or `/iru-plan` can pick it up — not for tickets that already exist (nothing to file) or when the work should be tracked as a GitHub issue instead (use `iru-create-github-issue`).
 model: sonnet
 ---
 
@@ -20,7 +20,9 @@ entirely on a connected Jira MCP integration.
 
 - Search for it: `ToolSearch` with a query like "jira issue" or "jira ticket".
 - If one or more Jira MCP tools are found, note what they support (creating issues, listing projects, listing
-  issue types, fetching issues by key) — later steps rely on whichever of these are actually available.
+  issue types, fetching issues by key, **uploading/adding an attachment to an existing issue**) — later steps
+  rely on whichever of these are actually available. The attachment capability specifically drives whether
+  Step 4/Step 8 can attach provided files directly to the ticket, or must fall back to describing/inlining them.
 - If none are found, tell the user plainly that this environment has no Jira connection and this skill has no
   fallback for filing one without it, then stop. Suggest `iru-create-github-issue` instead if the work should be
   tracked on GitHub.
@@ -61,7 +63,17 @@ Gather whatever is provided:
 - **URLs**: fetch each with `WebFetch` and note the key points worth folding into the ticket — don't just link
   them blind if their content materially shapes scope or acceptance criteria.
 - **Files/documents**: `Read` each local path (this tool also handles images and PDFs) and summarize what it
-  shows that's relevant to the ticket.
+  shows that's relevant to the ticket — this grounds the Context/Acceptance criteria sections. Don't stop at a
+  summary, though: unlike GitHub, Jira's own REST API has a native attachment endpoint
+  (`issue/{key}/attachments`) that accepts any file type, so if Step 1 found a Jira MCP tool that exposes it,
+  plan to actually attach every one of these files to the ticket once it exists — record the local paths here
+  for Step 8 to upload, since attaching requires the ticket's key and the ticket isn't created until then. If no
+  attachment-capable Jira MCP tool is available, fall back the same way `iru-create-github-issue` does when it
+  can't reach GitHub's own upload mechanism: embed small text-based files (logs, `.md`/`.txt`, config, diffs,
+  short specs — comfortably under a couple hundred lines) directly in the description's References section
+  inside a collapsible block, and for anything else (images, PDFs, large/binary files) just describe it in
+  References without an actual attachment, telling the user plainly that this Jira connection can't upload
+  files.
 - **Related Jira tickets**: confirm each with the connected Jira MCP tools (fetch by key: summary, status, URL) so
   the reference in the drafted description is accurate — don't take the user's key on faith without checking it
   resolves to what they mean. A related **GitHub** issue, if mentioned, can be confirmed with `gh issue view
@@ -158,17 +170,23 @@ Compose:
       judgment based on the concrete codebase evidence, not a formula; reserve "impossible" for something that
       genuinely isn't achievable as stated (e.g. it contradicts a hard technical constraint uncovered in Step 2),
       not just "very hard."
-  - **References** — any URLs, summarized file/document contents, and confirmed related-ticket/iru-issue links from
-    Step 4; omit if none were provided. If an epic was confirmed in Step 4, name it here too (key, summary, and a
-    one-line note of what context it added), separately from ordinary related tickets since it's also an
-    assignment, not just a reference.
+  - **References** — any URLs and confirmed related-ticket/iru-issue links from Step 4; omit if none were
+    provided. If an epic was confirmed in Step 4, name it here too (key, summary, and a one-line note of what
+    context it added), separately from ordinary related tickets since it's also an assignment, not just a
+    reference. For files/documents from Step 4: if they'll be attached via Jira MCP tools once the ticket
+    exists, add a short placeholder line per file ("attached: filename.ext") rather than embedding or linking
+    anything yet — the real attachment happens in Step 8 and shows up in the ticket's own Attachments panel. If
+    no attachment-capable tool is available, use Step 4's fallback instead: the inline collapsible block for
+    small text files, or a plain description for anything else.
   - Anything `iru-jira-custom-context` returned in Step 4: fold each label/value pair it reported in as its own
     line, either under **Task details** if it reads like a property of the ticket (team, environment, customer)
     or under **References** if it reads like supporting material — whichever fits the specific pair better. Omit
     this entirely if it returned nothing.
 
 Show the full drafted summary, description, project, issue type, and — if one was given — the epic it will be
-assigned to, to the user before taking any action.
+assigned to, to the user before taking any action. If Step 4 planned any real attachments (not just the inline/
+described fallback), list those file paths too, so the user sees exactly what's about to be uploaded to the
+ticket alongside everything else.
 
 ## Step 8 — Confirm and create
 
@@ -188,8 +206,16 @@ and URL from the tool's response.
 If ticket creation fails (e.g. a required field this Jira instance enforces wasn't supplied), surface the exact
 error to the user rather than retrying blindly, and ask how to proceed (supply the missing field, or stop).
 
+Once the ticket exists, upload every file Step 4 flagged for real attachment (the attachment-capable-tool path,
+not the inline/described fallback) using the connected Jira MCP tool(s), targeting the newly created ticket's
+key. Do this one file at a time so a single failure doesn't need to be diagnosed against a batch: if uploading a
+particular file fails (wrong MIME type, size limit, permission issue), note that file's error, keep uploading
+the rest, and report every failure in Step 9 rather than silently dropping it. Files handled by Step 4's fallback
+(already inlined in the description, or already described in References) need no further action here.
+
 ## Step 9 — Report
 
 Give the user the ticket key and URL, and tell them the ticket is now ready to be picked up: `/iru-issue <key>` to
 kick off branch creation, exploration, planning, implementation, and PR creation in one pass, or `/iru-plan <key>`
-alone if they'd rather just get an implementation plan first.
+alone if they'd rather just get an implementation plan first. If any file failed to attach in Step 8, list which
+ones and why, rather than letting a partial attachment failure pass unmentioned.
