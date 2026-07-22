@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Hermes is a Java 17 library that detects changes between two versions of a collection (inserted, removed, updated,
+Hermes is a Java 21 library that detects changes between two versions of a collection (inserted, removed, updated,
 and — for lists — moved items). It compares items using two independent notions: **identity** (do two items
 represent the same logical entity, e.g. same id) and **content equality** (has that entity's data changed). It has
 no runtime dependencies; only JUnit 5 and Mockito are used, in test scope.

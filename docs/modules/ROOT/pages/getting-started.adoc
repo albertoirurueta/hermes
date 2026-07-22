@@ -1,7 +1,7 @@
 = Getting Started
 
 Hermes is published as the Maven artifact `com.irurueta:hermes`.
-The project targets Java 17.
+The project targets Java 21.
 
 == Add the Dependency
 

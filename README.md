@@ -1,6 +1,6 @@
 # Hermes
 
-🪽 A Java 17 library to detect changes between collection items.
+🪽 A Java 21 library to detect changes between collection items.
 
 Hermes compares two versions of a collection and reports explicit changes: inserted, removed, updated, and, for ordered lists, moved items.
 It is useful when an application receives refreshed data and needs to synchronize a UI, update a cache, publish audit events, or send compact change notifications instead of replacing a whole collection.
@@ -27,7 +27,7 @@ The name reflects the library's purpose: carrying precise information about what
 
 | Area | Status                                                           |
 | --- |------------------------------------------------------------------|
-| Language | Java 17                                                          |
+| Language | Java 21                                                          |
 | Build tool | Maven                                                            |
 | Current development version | `1.4.0-SNAPSHOT`                                                 |
 | Latest release shown here | `1.3.0`                                                          |
@@ -142,7 +142,7 @@ The previous example reports:
 
 ### Requirements
 
-- JDK 17
+- JDK 21
 - Maven
 - Node.js 24 or newer, only needed to build the Antora documentation locally
 
