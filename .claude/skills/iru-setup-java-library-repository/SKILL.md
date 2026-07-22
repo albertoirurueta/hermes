@@ -1,6 +1,6 @@
 ---
 name: iru-setup-java-library-repository
-description: End-to-end bootstrap for a brand-new Java/Maven library repository — collects the project's identity (groupId, artifactId, base package, developer name/email/organizationUrl, license) and pipeline parameters (integration branch, Java version, publishing server id, sign/extras profile ids, Maven settings file) once, then orchestrates `iru-setup-java-library` (pom.xml + source folders), `iru-setup-antora` (documentation site), `iru-setup-java-gitignore` (root `.gitignore`), `iru-setup-java-github-workflows` (CI/CD workflows), `iru-setup-changelog` (root CHANGELOG.md), and `iru-setup-readme` (root README.md) in that order so nothing is asked twice. Invoke as `/iru-setup-java-library-repository`. Each parameter has the same default as the skill it feeds (`develop`, `17`, `central`, `build-extras`, `sign`, `mvnsettings.xml`) and can be overridden. Use when starting a new Java library repository from nothing and you want the full pom/docs/gitignore/CI/changelog/README scaffold in one pass, instead of running the skills separately and re-answering the same questions each time.
+description: End-to-end bootstrap for a brand-new Java/Maven library repository — collects the project's identity (groupId, artifactId, base package, developer name/email/organizationUrl, license) and pipeline parameters (integration branch, Java version, publishing server id, sign/extras profile ids, Maven settings file) once, then orchestrates `iru-setup-java-library` (pom.xml + source folders), `iru-setup-antora` (documentation site), `iru-setup-java-gitignore` (root `.gitignore`), `iru-setup-java-github-workflows` (CI/CD workflows), `iru-setup-changelog` (root CHANGELOG.md), and `iru-setup-readme` (root README.md) in that order so nothing is asked twice. Invoke as `/iru-setup-java-library-repository`. Each parameter has the same default as the skill it feeds (`develop`, `21`, `central`, `build-extras`, `sign`, `mvnsettings.xml`) and can be overridden. Use when starting a new Java library repository from nothing and you want the full pom/docs/gitignore/CI/changelog/README scaffold in one pass, instead of running the skills separately and re-answering the same questions each time.
 model: haiku
 ---
 
@@ -46,13 +46,13 @@ about twice at this level.
 
 Ask the user directly, presenting each with its default so a plain "yes"/blank reply accepts it:
 
-| Parameter | Default |
-|---|---|
-| Integration branch | `develop` |
-| Java version | `17` |
-| Publishing server id | `central` |
-| Extras profile id | `build-extras` |
-| Sign profile id | `sign` |
+| Parameter | Default           |
+|---|-------------------|
+| Integration branch | `develop`         |
+| Java version | `21`              |
+| Publishing server id | `central`         |
+| Extras profile id | `build-extras`    |
+| Sign profile id | `sign`            |
 | Maven settings file | `mvnsettings.xml` |
 
 These map directly onto `iru-setup-java-github-workflows`'s own six placeholders — same names, same defaults — so

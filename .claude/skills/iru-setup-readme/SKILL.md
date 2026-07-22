@@ -73,14 +73,14 @@ SonarCloud project that isn't configured yet.
 
 Compose a small table from whatever Steps 2–3 actually resolved; omit rows with no data rather than writing "N/A":
 
-| Row | Source |
-| --- | --- |
-| Language | Detected primary language + version (e.g. `Java 17`) |
-| Build tool | Maven / Gradle / npm / etc. |
-| Current development version | The unreleased/SNAPSHOT version from the build file, if different from the latest release |
-| Latest release | The latest git tag / release version |
-| License | The license identified in Step 2, if any |
-| CI | Which CI system and what it runs (e.g. "GitHub Actions for release and `develop` branch builds") |
+| Row | Source                                                                                                                         |
+| --- |--------------------------------------------------------------------------------------------------------------------------------|
+| Language | Detected primary language + version (e.g. `Java 21`)                                                                           |
+| Build tool | Maven / Gradle / npm / etc.                                                                                                    |
+| Current development version | The unreleased/SNAPSHOT version from the build file, if different from the latest release                                      |
+| Latest release | The latest git tag / release version                                                                                           |
+| License | The license identified in Step 2, if any                                                                                       |
+| CI | Which CI system and what it runs (e.g. "GitHub Actions for release and `develop` branch builds")                               |
 | Quality | Which tools actually run — only list ones with real config found (SonarCloud, JaCoCo, Checkstyle, SpotBugs, PMD, ESLint, etc.) |
 
 ## Step 5 — Gather documentation links
