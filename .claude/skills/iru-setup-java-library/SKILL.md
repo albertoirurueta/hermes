@@ -1,6 +1,6 @@
 ---
 name: iru-setup-java-library
-description: Generate a `pom.xml` at the repository root for a new Java library — asks for groupId, artifactId, version (default `1.0.0-SNAPSHOT`), the library's base Java package, license, and developer name/email/organizationUrl, then infers repository name/URL/SCM/inception year from the current git repository — and scaffolds the standard Maven source layout (`src/main/java/<package>`, `src/main/resources/<package>`, `src/test/java/<package>`) for that package. Invoke as `/iru-setup-java-library`. Ships with an explicit example `pom.xml` (derived from a real repository's pom, genericized) embedded in this skill file: test-only dependencies limited to junit-jupiter, junit-platform-launcher, mockito-core, and mockito-junit-jupiter, the same `sign`/`build-extras` profiles with the same plugins and versions, and a `groovy-maven-plugin` build-info step whose output path is rewired to the given library package. If `pom.xml` already exists, asks the user whether to stop or continue to regenerate it from the example. Accepts pre-resolved inputs via `args` (`key: value` lines) so an orchestrating skill like `iru-setup-java-library-repository` can supply them without re-prompting. Use whenever a new Java/Maven library repository needs its `pom.xml` and base folder structure bootstrapped from this house template, instead of hand-writing it.
+description: Generate a `pom.xml` at the repository root for a new Java library — asks for groupId, artifactId, version (default `1.0.0-SNAPSHOT`), the library's base Java package, license, developer name/email/organizationUrl, and whether to wire up a SonarQube/SonarCloud scan via the `sonar-maven-plugin`, then infers repository name/URL/SCM/inception year from the current git repository — and scaffolds the standard Maven source layout (`src/main/java/<package>`, `src/main/resources/<package>`, `src/test/java/<package>`) for that package. Invoke as `/iru-setup-java-library`. Ships with an explicit example `pom.xml` (derived from a real repository's pom, genericized) embedded in this skill file: test-only dependencies limited to junit-jupiter, junit-platform-launcher, mockito-core, and mockito-junit-jupiter, the same `sign`/`build-extras` profiles with the same plugins and versions, and a `groovy-maven-plugin` build-info step whose output path is rewired to the given library package. If `pom.xml` already exists, asks the user whether to stop or continue to regenerate it from the example. Accepts pre-resolved inputs via `args` (`key: value` lines) so an orchestrating skill like `iru-setup-java-library-repository` can supply them without re-prompting. Use whenever a new Java/Maven library repository needs its `pom.xml` and base folder structure bootstrapped from this house template, instead of hand-writing it.
 model: haiku
 ---
 
@@ -74,6 +74,19 @@ above):
 If a license is chosen (anything but "No license"), remind the user in Step 7 to also add a matching `LICENSE`
 file at the repository root if one doesn't exist yet — the `iru-check-license` skill can verify/backfill file headers
 against it once it's there.
+
+Then use `AskUserQuestion` to ask whether to wire up a SonarQube/SonarCloud scan (this house pattern runs it via
+the `sonar-maven-plugin`, invoked as `mvn sonar:sonar` — typically from the CI workflow the
+`iru-setup-java-github-workflows` skill generates, so it's worth setting up here even if that workflow comes
+later):
+
+- Yes, SonarCloud (recommended) — ask for the `sonar.organization` key, offering `<owner>-github` (the owner parsed
+  in Step 3) as the suggested default, since that's the key SonarCloud assigns by default when an organization is
+  created by importing from GitHub. Default `sonar.projectKey` to `<owner>_<repo>` (also from Step 3) and
+  `sonar.host.url` to `https://sonarcloud.io`, confirming both with the user rather than assuming silently.
+- Yes, self-hosted SonarQube — ask for `sonar.host.url` directly (no sensible default), plus `sonar.organization`
+  only if that server has organizations enabled, and `sonar.projectKey`.
+- No — omit the `sonar.*` properties and the `sonar-maven-plugin` entry from Step 4's template entirely.
 
 ## Step 3 — Infer repository information
 
@@ -166,6 +179,11 @@ only substitute `<placeholder>` values using Steps 2–3.
     <maven.compiler.target>17</maven.compiler.target>
     <github.global.server>github</github.global.server>
     <github.global.oauth2Token>${env.GITHUB_OAUTH_TOKEN}</github.global.oauth2Token>
+    <!-- Omit these four sonar.* properties if the user opted out of SonarCloud/SonarQube in Step 2 -->
+    <sonar.organization><sonar-organization></sonar.organization>
+    <sonar.projectKey><sonar-project-key></sonar.projectKey>
+    <sonar.host.url><sonar-host-url></sonar.host.url>
+    <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
   </properties>
 
   <profiles>
@@ -369,6 +387,12 @@ only substitute `<placeholder>` values using Steps 2–3.
           <autoPublish>true</autoPublish>
         </configuration>
       </plugin>
+      <!-- SonarCloud analysis; omit this plugin entry if the user opted out in Step 2 -->
+      <plugin>
+        <groupId>org.sonarsource.scanner.maven</groupId>
+        <artifactId>sonar-maven-plugin</artifactId>
+        <version><sonar-maven-plugin-version></version>
+      </plugin>
     </plugins>
   </build>
 
@@ -453,6 +477,12 @@ Substitute every placeholder using Steps 2–3:
 - `<license-name>` / `<license-url>` — from Step 2's license choice; if "No license" was chosen, remove the entire
   `<licenses>...</licenses>` block rather than leaving empty placeholder tags.
 - `<library-package-path>` — the library package from Step 2, with `.` replaced by `/`.
+- `<sonar-organization>` / `<sonar-project-key>` / `<sonar-host-url>` — from Step 2's SonarCloud/SonarQube answer;
+  if the user opted out, remove the four `sonar.*` properties and the `sonar-maven-plugin` plugin entry entirely
+  rather than leaving empty placeholder tags.
+- `<sonar-maven-plugin-version>` — only needed if SonarCloud/SonarQube was opted into: look up the current latest
+  `org.sonarsource.scanner.maven:sonar-maven-plugin` version (e.g. via Maven Central's search API) rather than
+  hardcoding a version here, since this plugin releases fairly often.
 
 Every other line (dependencies, properties, both profiles, all build/reporting plugins and their versions) is
 copied verbatim from Step 4 — this skill does not add, remove, or re-version any dependency or plugin beyond what
@@ -486,14 +516,17 @@ src/test/java/<library-package-path>/
 ## Step 8 — Report and warn
 
 Summarize what was generated: the resolved groupId/artifactId/version, the license chosen (or "none"), the
-repository info inferred in Step 3, and which of the three source folders from Step 7 were created versus already
-present. Remind the user that empty directories won't show up in `git status` until they contain a file. If Step
-1's existing file was replaced, explicitly list what could have been lost — any dependency or plugin that isn't
-one of the four test dependencies or the standard profiles/plugins in Step 4's template — and tell the user to
-check `git diff pom.xml` for anything they need to re-add.
+SonarCloud/SonarQube choice from Step 2 (and its resolved `sonar.organization`/`sonar.projectKey`/`sonar.host.url`,
+or that it was omitted), the repository info inferred in Step 3, and which of the three source folders from Step 7
+were created versus already present. Remind the user that empty directories won't show up in `git status` until
+they contain a file. If Step 1's existing file was replaced, explicitly list what could have been lost — any
+dependency or plugin that isn't one of the four test dependencies or the standard profiles/plugins in Step 4's
+template — and tell the user to check `git diff pom.xml` for anything they need to re-add.
 
 Finish with an explicit warning: **the user must review the generated `pom.xml` before building or committing.**
 Confirm the license choice matches an actual `LICENSE` file (or that none is intended), that the inferred
 repository URL/SCM values are correct, and that `mvn validate` (or `mvn compile`) succeeds before relying on this
 file. If a license was chosen and no `LICENSE` file exists yet, suggest the `iru-check-license` skill to generate one
-and backfill source headers.
+and backfill source headers. If SonarCloud/SonarQube was wired up, note that a `SONAR_TOKEN` repository secret and
+an actual SonarCloud/SonarQube project matching `sonar.projectKey` still need to exist before `mvn sonar:sonar`
+(typically run from the `iru-setup-java-github-workflows` skill's generated CI) will succeed.

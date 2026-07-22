@@ -1,6 +1,6 @@
 ---
 name: iru-setup-java-github-workflows
-description: Create or update the `develop.yml`, `main.yml`, and `sync.yml` GitHub Actions workflows for a Java/Maven library repository — build and test, run Checkstyle/PMD/SpotBugs static analysis, generate JaCoCo coverage and the Maven `site` report, send results to SonarQube/SonarCloud, build the Antora documentation site, publish both the Antora docs and the Maven site report to GitHub Pages, publish the release artifact to Maven Central, and — once a release is published — open a pull request that merges the released branch back into the integration branch and bumps the development snapshot version across `pom.xml`, `README.md`, and the Antora docs (via the companion `.github/scripts/sync_versions.py` script). Invoke as `/iru-setup-java-github-workflows`. Ships with generic example templates (derived from a real repository's workflows, genericized so they don't name any specific repository) embedded in this skill file, reusable across repositories. Creates all three workflows (and the sync script) from scratch if none exist; if any already exists, asks the user whether to stop or attempt an update using the templates as reference. Accepts the six pipeline parameters (integration branch, Java version, publishing server id, extras/sign profile ids, settings file) pre-resolved via `args` (`key: value` lines) so an orchestrating skill like `iru-setup-java-library-repository` can supply them without re-prompting. Use whenever a Java/Maven repository needs this CI/CD release pipeline bootstrapped or brought in line with this house pattern, instead of hand-writing the YAML.
+description: Create or update the `develop.yml`, `main.yml`, and `sync.yml` GitHub Actions workflows for a Java/Maven library repository — build and test, run Checkstyle/PMD/SpotBugs static analysis, generate JaCoCo coverage and the Maven `site` report, run a SonarQube/SonarCloud scan via the `sonar-maven-plugin` (`mvn sonar:sonar`, so it runs under the same JDK the job already set up), build the Antora documentation site, publish both the Antora docs and the Maven site report to GitHub Pages, publish the release artifact to Maven Central, and — once a release is published — open a pull request that merges the released branch back into the integration branch and bumps the development snapshot version across `pom.xml`, `README.md`, and the Antora docs (via the companion `.github/scripts/sync_versions.py` script). Invoke as `/iru-setup-java-github-workflows`. Ships with generic example templates (derived from a real repository's workflows, genericized so they don't name any specific repository) embedded in this skill file, reusable across repositories. Creates all three workflows (and the sync script) from scratch if none exist; if any already exists, asks the user whether to stop or attempt an update using the templates as reference. Accepts the six pipeline parameters (integration branch, Java version, publishing server id, extras/sign profile ids, settings file) pre-resolved via `args` (`key: value` lines) so an orchestrating skill like `iru-setup-java-library-repository` can supply them without re-prompting. Use whenever a Java/Maven repository needs this CI/CD release pipeline bootstrapped or brought in line with this house pattern, instead of hand-writing the YAML.
 model: haiku
 ---
 
@@ -9,7 +9,8 @@ model: haiku
 Scaffold (or update) three GitHub Actions workflows for a Java/Maven library:
 
 - **`develop.yml`** — runs on every push to the integration branch. Build, test, static analysis, coverage, a
-  SonarQube/SonarCloud scan, an Antora docs build, and a publish to GitHub Pages + Maven Central.
+  SonarQube/SonarCloud scan (via the `sonar-maven-plugin`, not a standalone `sonar-scanner` step), an Antora docs
+  build, and a publish to GitHub Pages + Maven Central.
 - **`main.yml`** — the same pipeline, but triggered when a GitHub Release is published rather than on every push.
 - **`sync.yml`** — triggered when a GitHub Release is published from the stable branch. Opens a pull request into
   the integration branch that merges the released branch back in and bumps the development snapshot version in
@@ -75,10 +76,16 @@ a real answer, not guessed. If `pom.xml` is missing and the user chose to contin
   `spotbugs-maven-plugin`, and `maven-pmd-plugin` are configured under `<reporting>` — these feed the `mvn site`
   report. Not required to proceed, but note any that are missing so the user knows that section of the site report
   will be empty.
-- **SonarQube/SonarCloud config**: check for `sonar-project.properties` at the repository root, or `sonar.*`
-  properties in `pom.xml`. If neither exists, this skill still wires up the `sonar-scanner` step (Step 3), but
-  someone must supply `sonar.projectKey`/`sonar.organization`/`sonar.host.url` before it will run successfully —
-  flag this and offer to create `sonar-project.properties` in Step 6 if the user can give you those values now.
+- **SonarQube/SonarCloud config**: check `pom.xml` for the `sonar-maven-plugin`
+  (`org.sonarsource.scanner.maven:sonar-maven-plugin`) and its `sonar.organization`/`sonar.projectKey`/
+  `sonar.host.url` properties. This house pattern runs the scan via `mvn sonar:sonar` in the workflow (Step 3), so
+  the config lives in `pom.xml` itself — not a standalone `sonar-project.properties` file (that file, and the
+  `warchant/setup-sonar-scanner` action plus a separate `sonar-scanner` CLI step, are the older pattern this skill
+  no longer generates). If the plugin or properties are missing, this skill still wires up the `Run SonarCloud
+  analysis` step (Step 3), but someone must add them to `pom.xml` before it will run successfully — flag this and
+  offer to add them in Step 5 if the user can give you `sonar.organization`/`sonar.projectKey` now. If a stray
+  `sonar-project.properties` still exists from before this house pattern changed, note in Step 8 that it's now
+  redundant (nothing reads it once `pom.xml` carries the same settings) and offer to remove it.
 - **Antora docs**: check for `docs/antora.yml` and `docs/antora-playbook.yml`. If either is missing, the docs step
   in Step 3 has nothing to build against — tell the user to run the `iru-setup-antora` skill first, or confirm they'll
   do so before merging this workflow.
@@ -167,16 +174,11 @@ jobs:
           mvn clean jacoco:prepare-agent install jacoco:report javadoc:jar source:jar -P '!<extras-profile-id>'
           mvn site -Djacoco.skip -DskipTests -P '!<extras-profile-id>'
 
-      - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v8
-
-      - name: Send to sonarqube
+      - name: Run SonarCloud analysis
         env:
           # to get access to secrets.SONAR_TOKEN, provide GITHUB_TOKEN
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: sonar-scanner
-          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+        run: mvn sonar:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
       - name: Install Node
         uses: actions/setup-node@v4
@@ -528,19 +530,36 @@ Before writing the workflows, make sure the files they depend on exist:
 
 - **`docs/antora.yml` / `docs/antora-playbook.yml` missing**: recommend running the `iru-setup-antora` skill now; the
   Antora build step in the workflow will fail without them.
-- **`sonar-project.properties` missing**: ask the user for `sonar.organization` (if using SonarCloud),
-  `sonar.projectKey`, and `sonar.host.url` (default `https://sonarcloud.io` unless they run self-hosted
-  SonarQube), then create it, e.g.:
+- **`sonar-maven-plugin`/`sonar.*` properties missing from `pom.xml`**: ask the user for `sonar.organization` (if
+  using SonarCloud), `sonar.projectKey`, and `sonar.host.url` (default `https://sonarcloud.io` unless they run
+  self-hosted SonarQube), then add them directly to `pom.xml`. Look up the current latest
+  `org.sonarsource.scanner.maven:sonar-maven-plugin` version from Maven Central rather than hardcoding a version
+  here — this plugin releases fairly often. Add to `<properties>`:
 
-  ```properties
-  sonar.organization=<org>
-  sonar.projectKey=<project-key>
-  sonar.host.url=<sonar-host-url>
-  sonar.sources=src/main/java
-  sonar.language=java
-  sonar.java.binaries=target/classes/**
-  sonar.java.source=<java-version>
+  ```xml
+  <sonar.organization><org></sonar.organization>
+  <sonar.projectKey><project-key></sonar.projectKey>
+  <sonar.host.url><sonar-host-url></sonar.host.url>
+  <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
   ```
+
+  and add the plugin itself to `<build><plugins>` (it needs no `<executions>` — the workflow invokes its
+  `sonar:sonar` goal directly, not through a lifecycle phase):
+
+  ```xml
+  <!-- SonarCloud analysis -->
+  <plugin>
+    <groupId>org.sonarsource.scanner.maven</groupId>
+    <artifactId>sonar-maven-plugin</artifactId>
+    <version><sonar-maven-plugin-version></version>
+  </plugin>
+  ```
+
+  `sonar.coverage.jacoco.xmlReportPaths` must point at wherever the `jacoco-maven-plugin`'s `report` execution
+  writes its XML (confirm the actual path already configured in `pom.xml` — `${project.build.directory}/site/jacoco/jacoco.xml`
+  is this house pattern's default) so the scan doesn't rely on autodetection finding it. `sonar.java.source` needs
+  no explicit setting: the plugin reads `maven.compiler.source`/`maven.compiler.release` automatically, so the
+  scan always tracks whatever Java version `pom.xml` already targets.
 
 - **Maven settings file (`<settings-file>` from Step 3) missing**: create it, matching the `server-id` resolved in
   Step 1:
@@ -593,7 +612,7 @@ this skill cannot create them itself:
 
 | Secret | Purpose |
 |---|---|
-| `SONAR_TOKEN` | Auth token for the SonarQube/SonarCloud scan |
+| `SONAR_TOKEN` | Auth token for the SonarQube/SonarCloud scan, passed as `-Dsonar.token` to `mvn sonar:sonar` |
 | `OSSRH_USERNAME` / `OSSRH_PASSWORD` | Maven Central (Sonatype) publishing credentials |
 | `SIGNING_KEY` / `SIGNING_KEY_ID` / `SIGNING_PASSWORD` | GPG private key, its key id, and its passphrase, for artifact signing |
 | `SONATYPE_STAGING_PROFILE_ID` | Only needed with the legacy `nexus-staging-maven-plugin`; if the target repo uses `central-publishing-maven-plugin` this secret is unused and can be left unset or removed from the deploy step |
@@ -607,10 +626,11 @@ and `sync.yml` will fail silently-ish (a `gh pr create` permissions error) on th
 ## Step 8 — Report and warn
 
 Summarize what happened: whether the workflows (and `sync_versions.py`) were created fresh, updated in place, or
-left untouched (Step 2's stop path); which supporting files (`sonar-project.properties`, the settings XML) were
-created versus already present; and any open gaps noted in Steps 1/4 (missing Central plugin, missing signing
-profile, missing Antora setup, README/Antora wording that didn't match `sync_versions.py`'s default regexes,
-patch-level releases the minor-bump default doesn't handle, etc.).
+left untouched (Step 2's stop path); whether `pom.xml`'s `sonar-maven-plugin`/`sonar.*` properties and the settings
+XML were added versus already present (and whether a stale `sonar-project.properties` was flagged for removal);
+and any open gaps noted in Steps 1/4 (missing Central plugin, missing signing profile, missing Antora setup,
+README/Antora wording that didn't match `sync_versions.py`'s default regexes, patch-level releases the minor-bump
+default doesn't handle, etc.).
 
 Finish with an explicit warning: **the user must review the generated (or updated) workflow files before relying on
 them.** Branch names, profile ids, the Java version, and the Maven Central publishing setup were inferred from this
