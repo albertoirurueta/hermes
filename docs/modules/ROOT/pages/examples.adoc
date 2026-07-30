@@ -40,6 +40,27 @@ for (var change : changes) {
 }
 ----
 
+Classes used in this example:
+
+[cols="1,1,1",options="header"]
+|===
+|Class
+|Source
+|Javadoc
+
+|`CollectionItemChangeDetector`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/CollectionItemChangeDetector.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/CollectionItemChangeDetector.html[Javadoc]
+
+|`CollectionItemChangeAction`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/CollectionItemChangeAction.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/CollectionItemChangeAction.html[Javadoc]
+
+|`UpdatedCollectionItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/UpdatedCollectionItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/UpdatedCollectionItemChange.html[Javadoc]
+|===
+
 == Replay Sequential List Changes
 
 Sequential detectors are a good fit when you want to apply the returned operations to an existing ordered list.
@@ -98,6 +119,39 @@ for (ListItemChange change : changes) {
 }
 ----
 
+Classes used in this example:
+
+[cols="1,1,1",options="header"]
+|===
+|Class
+|Source
+|Javadoc
+
+|`SequentialListItemChangeDetector`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/SequentialListItemChangeDetector.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/SequentialListItemChangeDetector.html[Javadoc]
+
+|`ListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ListItemChange.html[Javadoc]
+
+|`InsertedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/InsertedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/InsertedListItemChange.html[Javadoc]
+
+|`RemovedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/RemovedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/RemovedListItemChange.html[Javadoc]
+
+|`MovedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/MovedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/MovedListItemChange.html[Javadoc]
+
+|`UpdatedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/UpdatedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/UpdatedListItemChange.html[Javadoc]
+|===
+
 == Use Comparable Items
 
 When items implement `ComparableItem`, Hermes can use the item methods directly.
@@ -133,3 +187,20 @@ var changes = detector.detectChanges(newAccounts, oldAccounts);
 
 The important rule is that `equals(Object)` identifies the same logical item.
 It should not compare every field if those fields are supposed to produce `UPDATED` changes.
+
+Classes used in this example:
+
+[cols="1,1,1",options="header"]
+|===
+|Class
+|Source
+|Javadoc
+
+|`ComparableItem`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ComparableItem.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ComparableItem.html[Javadoc]
+
+|`ComparableCollectionItemChangeDetector`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ComparableCollectionItemChangeDetector.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ComparableCollectionItemChangeDetector.html[Javadoc]
+|===
