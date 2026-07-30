@@ -92,6 +92,39 @@ The detector matches items by `id`.
 It compares content with `Objects.equals`.
 In this example Hermes reports item 4 as removed, item 5 as inserted, item 1 and item 3 as moved, and item 2 as updated.
 
+Classes used in this example:
+
+[cols="1,1,1",options="header"]
+|===
+|Class
+|Source
+|Javadoc
+
+|`ListItemChangeDetector`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ListItemChangeDetector.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ListItemChangeDetector.html[Javadoc]
+
+|`ListItemChangeAction`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ListItemChangeAction.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ListItemChangeAction.html[Javadoc]
+
+|`InsertedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/InsertedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/InsertedListItemChange.html[Javadoc]
+
+|`RemovedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/RemovedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/RemovedListItemChange.html[Javadoc]
+
+|`MovedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/MovedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/MovedListItemChange.html[Javadoc]
+
+|`UpdatedListItemChange`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/UpdatedListItemChange.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/UpdatedListItemChange.html[Javadoc]
+|===
+
 == Method Contract
 
 All detectors use the same call shape:
