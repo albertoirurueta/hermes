@@ -21,6 +21,9 @@ These reports are generated during the Maven build and site lifecycle.
 |https://sonarcloud.io/project/overview?id=albertoirurueta_hermes[SonarCloud]
 |Project quality dashboard with issue analysis, code quality information, and coverage metrics.
 
+|https://albertoirurueta.github.io/hermes/mvn-site[Maven Site]
+|Aggregation of project reports.
+
 |https://github.com/albertoirurueta/hermes[Repository]
 |Github repository
 |===
