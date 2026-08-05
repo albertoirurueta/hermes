@@ -1,4 +1,6 @@
 = Hermes
+:description: Hermes is a Java library that detects differences between two versions of a collection, reporting inserted, removed, updated, and moved items for lists and collections.
+:keywords: Hermes, Java library, collection diff, list diff, change detection, item change detector, Java 17, data synchronization
 
 NOTE: This documentation was generated with the assistance of AI. Please report any inaccuracies.
 

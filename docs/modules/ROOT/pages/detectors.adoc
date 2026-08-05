@@ -1,4 +1,6 @@
 = Choosing a Detector
+:description: Compare Hermes detector classes for collections and lists, choose between custom comparators and ComparableItem, and pick absolute or sequential list positions.
+:keywords: Hermes detectors, CollectionItemChangeDetector, ListItemChangeDetector, ComparableItem, SequentialListItemChangeDetector, absolute positions, sequential positions
 
 Hermes offers detector classes for three decisions:
 

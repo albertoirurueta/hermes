@@ -1,4 +1,6 @@
 = Getting Started
+:description: Add the Hermes Maven dependency and walk through a basic Java example using ListItemChangeDetector to detect inserted, removed, moved, and updated list items.
+:keywords: Hermes getting started, Maven dependency, Java example, ListItemChangeDetector, detectChanges, install Hermes, Java 17
 
 Hermes is published as the Maven artifact `com.irurueta:hermes`.
 The project targets Java 17.
