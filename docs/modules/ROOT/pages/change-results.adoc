@@ -1,4 +1,6 @@
 = Change Results
+:description: Reference for Hermes change result types, including CollectionItemChange and ListItemChange subtypes, action enums, list position semantics, and null handling rules.
+:keywords: Hermes change results, CollectionItemChange, ListItemChange, ChangeAction, list position, inserted removed updated moved, null handling
 
 Hermes returns a collection of change objects.
 The base object exposes the action enum, and each concrete subtype exposes the item values and positions that are meaningful for that action.

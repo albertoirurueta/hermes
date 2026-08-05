@@ -1,4 +1,6 @@
 = Reference
+:description: Links to Hermes project reports, including the Javadoc API reference, JaCoCo code coverage, Surefire test results, SonarCloud quality dashboard, and the GitHub repository.
+:keywords: Hermes reference, Javadoc, JaCoCo, Surefire report, SonarCloud, Maven site, GitHub repository
 
 These reports are generated during the Maven build and site lifecycle.
 

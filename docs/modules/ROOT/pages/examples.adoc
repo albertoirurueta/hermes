@@ -1,4 +1,6 @@
 = Examples
+:description: Java code examples for detecting updates in a collection, replaying sequential list changes against a working list, and using ComparableItem with Hermes detectors.
+:keywords: Hermes examples, Java code sample, CollectionItemChangeDetector example, SequentialListItemChangeDetector example, ComparableItem example, replay list changes
 
 These examples show the most common ways to use Hermes.
 
