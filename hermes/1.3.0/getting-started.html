@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Getting Started :: Hermes</title>
+    <meta name="description" content="Add the Hermes Maven dependency and walk through a basic Java example using ListItemChangeDetector to detect inserted, removed, moved, and updated list items.">
+    <meta name="keywords" content="Hermes getting started, Maven dependency, Java example, ListItemChangeDetector, detectChanges, install Hermes, Java 17">
+    <meta name="generator" content="Antora 3.1.15">
+    <link rel="stylesheet" href="../../_/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../../_/img/logo.svg">
+  </head>
+  <body class="article">
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'; mermaid.initialize({"startOnLoad":true}); </script><header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="../.."><img src="../../_/img/logo.svg" alt="Hermes" class="navbar-brand-logo">Hermes</a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu" style="display: none;">
+      <div class="navbar-end">
+        <a class="navbar-item" href="#">Home</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">Products</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="#">Product A</a>
+            <a class="navbar-item" href="#">Product B</a>
+            <a class="navbar-item" href="#">Product C</a>
+          </div>
+        </div>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">Services</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="#">Service A</a>
+            <a class="navbar-item" href="#">Service B</a>
+            <a class="navbar-item" href="#">Service C</a>
+          </div>
+        </div>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button is-primary" href="#">Download</a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="hermes" data-version="1.3.0">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Hermes</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Hermes</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <a class="nav-link" href="getting-started.html">Getting Started</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="detectors.html">Choosing a Detector</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="examples.html">Examples</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="change-results.html">Change Results</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="reference.html">Reference</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Hermes</span>
+    <span class="version">1.3.0</span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Hermes</a></div>
+      <ul class="versions">
+        <li class="version is-current is-latest">
+          <a href="index.html">1.3.0</a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Hermes</a></li>
+    <li><a href="getting-started.html">Getting Started</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/albertoirurueta/hermes/edit/develop/docs/modules/ROOT/pages/getting-started.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Getting Started</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Hermes is published as the Maven artifact <code>com.irurueta:hermes</code>.
+The project targets Java 21.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_add_the_dependency"><a class="anchor" href="#_add_the_dependency"></a>Add the Dependency</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Latest release:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+    &lt;groupId&gt;com.irurueta&lt;/groupId&gt;
+    &lt;artifactId&gt;hermes&lt;/artifactId&gt;
+    &lt;version&gt;1.3.0&lt;/version&gt;
+    &lt;scope&gt;compile&lt;/scope&gt;
+&lt;/dependency&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Latest snapshot from this repository:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+    &lt;groupId&gt;com.irurueta&lt;/groupId&gt;
+    &lt;artifactId&gt;hermes&lt;/artifactId&gt;
+    &lt;version&gt;1.4.0-SNAPSHOT&lt;/version&gt;
+    &lt;scope&gt;compile&lt;/scope&gt;
+&lt;/dependency&gt;</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_basic_list_example"><a class="anchor" href="#_basic_list_example"></a>Basic List Example</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Use <code>ListItemChangeDetector</code> when your items do not implement Hermes' <code>ComparableItem</code> interface and you want to provide matching logic with lambdas or comparator classes.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">import com.irurueta.hermes.InsertedListItemChange;
+import com.irurueta.hermes.ListItemChangeAction;
+import com.irurueta.hermes.ListItemChangeDetector;
+import com.irurueta.hermes.MovedListItemChange;
+import com.irurueta.hermes.RemovedListItemChange;
+import com.irurueta.hermes.UpdatedListItemChange;
+
+import java.util.List;
+import java.util.Objects;
+
+record Item(int id, String content) { }
+
+var detector = new ListItemChangeDetector&lt;Item&gt;(
+        (item1, item2) -&gt; item1.id() == item2.id(),
+        (item1, item2) -&gt; Objects.equals(item1.content(), item2.content()));
+
+var oldList = List.of(
+        new Item(1, "item1"),
+        new Item(2, "item2"),
+        new Item(3, "item3"),
+        new Item(4, "item4"));
+
+var newList = List.of(
+        new Item(3, "item3"),
+        new Item(2, "item2b"),
+        new Item(1, "item1"),
+        new Item(5, "item5"));
+
+var changes = detector.detectChanges(newList, oldList);
+
+for (var change : changes) {
+    if (change.getAction() == ListItemChangeAction.REMOVED) {
+        var removed = (RemovedListItemChange&lt;Item&gt;) change;
+        System.out.println("Removed " + removed.getOldItem()
+                + " from " + removed.getOldPosition());
+    } else if (change.getAction() == ListItemChangeAction.INSERTED) {
+        var inserted = (InsertedListItemChange&lt;Item&gt;) change;
+        System.out.println("Inserted " + inserted.getNewItem()
+                + " at " + inserted.getNewPosition());
+    } else if (change.getAction() == ListItemChangeAction.MOVED) {
+        var moved = (MovedListItemChange&lt;Item&gt;) change;
+        System.out.println("Moved " + moved.getOldItem()
+                + " from " + moved.getOldPosition()
+                + " to " + moved.getNewPosition());
+    } else if (change.getAction() == ListItemChangeAction.UPDATED) {
+        var updated = (UpdatedListItemChange&lt;Item&gt;) change;
+        System.out.println("Updated " + updated.getOldItem()
+                + " to " + updated.getNewItem()
+                + " at " + updated.getPosition());
+    }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The detector matches items by <code>id</code>.
+It compares content with <code>Objects.equals</code>.
+In this example Hermes reports item 4 as removed, item 5 as inserted, item 1 and item 3 as moved, and item 2 as updated.</p>
+</div>
+<div class="paragraph">
+<p>Classes used in this example:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Class</th>
+<th class="tableblock halign-left valign-top">Source</th>
+<th class="tableblock halign-left valign-top">Javadoc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ListItemChangeDetector</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ListItemChangeDetector.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ListItemChangeDetector.html">Javadoc</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ListItemChangeAction</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ListItemChangeAction.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ListItemChangeAction.html">Javadoc</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>InsertedListItemChange</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/InsertedListItemChange.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/InsertedListItemChange.html">Javadoc</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>RemovedListItemChange</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/RemovedListItemChange.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/RemovedListItemChange.html">Javadoc</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>MovedListItemChange</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/MovedListItemChange.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/MovedListItemChange.html">Javadoc</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>UpdatedListItemChange</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/UpdatedListItemChange.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/UpdatedListItemChange.html">Javadoc</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_method_contract"><a class="anchor" href="#_method_contract"></a>Method Contract</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All detectors use the same call shape:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">var changes = detector.detectChanges(newItems, oldItems);</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Both arguments are required.
+Passing <code>null</code> for either collection throws <code>IllegalArgumentException</code>.</p>
+</div>
+<div class="paragraph">
+<p>The detector returns change objects.
+Each change has an action enum, and specialized subclasses expose the old item, new item, and any relevant positions.</p>
+</div>
+</div>
+</div>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>Made with ♥ from <strong>BCN</strong></p>
+</footer>
+<script id="site-script" src="../../_/js/site.js" data-ui-root-path="../../_"></script>
+<script async src="../../_/js/vendor/highlight.js"></script>
+<script src="../../_/js/vendor/lunr.js"></script>
+<script src="../../_/js/search-ui.js" id="search-ui-script" data-site-root-path="../.." data-snippet-length="100" data-stylesheet="../../_/css/search.css"></script>
+<script async src="../../search-index.js"></script>
+  </body>
+</html>

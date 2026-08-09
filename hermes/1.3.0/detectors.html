@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Choosing a Detector :: Hermes</title>
+    <meta name="description" content="Compare Hermes detector classes for collections and lists, choose between custom comparators and ComparableItem, and pick absolute or sequential list positions.">
+    <meta name="keywords" content="Hermes detectors, CollectionItemChangeDetector, ListItemChangeDetector, ComparableItem, SequentialListItemChangeDetector, absolute positions, sequential positions">
+    <meta name="generator" content="Antora 3.1.15">
+    <link rel="stylesheet" href="../../_/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../../_/img/logo.svg">
+  </head>
+  <body class="article">
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'; mermaid.initialize({"startOnLoad":true}); </script><header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="../.."><img src="../../_/img/logo.svg" alt="Hermes" class="navbar-brand-logo">Hermes</a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu" style="display: none;">
+      <div class="navbar-end">
+        <a class="navbar-item" href="#">Home</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">Products</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="#">Product A</a>
+            <a class="navbar-item" href="#">Product B</a>
+            <a class="navbar-item" href="#">Product C</a>
+          </div>
+        </div>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">Services</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="#">Service A</a>
+            <a class="navbar-item" href="#">Service B</a>
+            <a class="navbar-item" href="#">Service C</a>
+          </div>
+        </div>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button is-primary" href="#">Download</a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="hermes" data-version="1.3.0">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Hermes</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Hermes</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="getting-started.html">Getting Started</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <a class="nav-link" href="detectors.html">Choosing a Detector</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="examples.html">Examples</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="change-results.html">Change Results</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="reference.html">Reference</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Hermes</span>
+    <span class="version">1.3.0</span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Hermes</a></div>
+      <ul class="versions">
+        <li class="version is-current is-latest">
+          <a href="index.html">1.3.0</a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Hermes</a></li>
+    <li><a href="detectors.html">Choosing a Detector</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/albertoirurueta/hermes/edit/develop/docs/modules/ROOT/pages/detectors.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Choosing a Detector</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Hermes offers detector classes for three decisions:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Whether the input is position-aware.</p>
+</li>
+<li>
+<p>Whether items implement <code>ComparableItem</code>.</p>
+</li>
+<li>
+<p>Whether list positions should be absolute or sequential.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_decision_tree"><a class="anchor" href="#_decision_tree"></a>Decision Tree</h2>
+<div class="sectionbody">
+<div class="imageblock"><div class="mermaid content" style=" ">flowchart TD
+    start["What are you comparing?"]
+    collection["Position-independent collection"]
+    list["List or ordered data"]
+    customCollection["Use custom comparators?"]
+    customList["Use custom comparators?"]
+    positionMode["How should positions be interpreted?"]
+    collectionDetector["CollectionItemChangeDetector"]
+    comparableCollectionDetector["ComparableCollectionItemChangeDetector"]
+    listDetector["ListItemChangeDetector"]
+    comparableListDetector["ComparableListItemChangeDetector"]
+    sequentialListDetector["SequentialListItemChangeDetector"]
+    comparableSequentialListDetector["ComparableSequentialListItemChangeDetector"]
+
+    start --> collection
+    start --> list
+    collection --> customCollection
+    customCollection -->|"yes"| collectionDetector
+    customCollection -->|"no, item implements ComparableItem"| comparableCollectionDetector
+    list --> customList
+    customList -->|"yes"| positionMode
+    customList -->|"no, item implements ComparableItem"| positionMode
+    positionMode -->|"absolute snapshot positions and custom comparators"| listDetector
+    positionMode -->|"absolute snapshot positions and ComparableItem"| comparableListDetector
+    positionMode -->|"sequential edit positions and custom comparators"| sequentialListDetector
+    positionMode -->|"sequential edit positions and ComparableItem"| comparableSequentialListDetector</div></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_detector_matrix"><a class="anchor" href="#_detector_matrix"></a>Detector Matrix</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 20%;">
+<col style="width: 20%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Collection shape</th>
+<th class="tableblock halign-left valign-top">Item comparison style</th>
+<th class="tableblock halign-left valign-top">Position style</th>
+<th class="tableblock halign-left valign-top">Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Collection, set, map values, or any position-independent data</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Custom comparators</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Not applicable</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>CollectionItemChangeDetector</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Collection, set, map values, or any position-independent data</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Items implement <code>ComparableItem</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Not applicable</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ComparableCollectionItemChangeDetector</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">List or other ordered data</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Custom comparators</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Absolute positions</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ListItemChangeDetector</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">List or other ordered data</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Items implement <code>ComparableItem</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Absolute positions</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ComparableListItemChangeDetector</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">List or other ordered data</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Custom comparators</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sequential edit positions</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>SequentialListItemChangeDetector</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">List or other ordered data</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Items implement <code>ComparableItem</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sequential edit positions</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ComparableSequentialListItemChangeDetector</code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_custom_comparators"><a class="anchor" href="#_custom_comparators"></a>Custom Comparators</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Use comparator-based detectors when your item type cannot or should not implement Hermes interfaces.
+The identity comparator answers "is this the same logical item?"
+The content comparator answers "does this same logical item have the same content?"</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">var detector = new CollectionItemChangeDetector&lt;Product&gt;(
+        (left, right) -&gt; left.id().equals(right.id()),
+        (left, right) -&gt; left.name().equals(right.name())
+                &amp;&amp; left.price().compareTo(right.price()) == 0);</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Classes used in this example:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Class</th>
+<th class="tableblock halign-left valign-top">Source</th>
+<th class="tableblock halign-left valign-top">Javadoc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>CollectionItemChangeDetector</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/CollectionItemChangeDetector.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/CollectionItemChangeDetector.html">Javadoc</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_comparableitem"><a class="anchor" href="#_comparableitem"></a>ComparableItem</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Use comparable detectors when the item type can carry its own comparison rules.
+<code>equals(Object)</code> must represent identity, not full content equality.
+<code>equalContent(T other)</code> represents content equality.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">import com.irurueta.hermes.ComparableItem;
+
+record Product(String id, String name, int quantity)
+        implements ComparableItem&lt;Product&gt; {
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Product product &amp;&amp; id.equals(product.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
+    @Override
+    public boolean equalContent(Product other) {
+        return name.equals(other.name) &amp;&amp; quantity == other.quantity;
+    }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>After that, detector construction is simpler:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">var detector = new ComparableListItemChangeDetector&lt;Product&gt;();
+var changes = detector.detectChanges(newProducts, oldProducts);</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Classes used in these examples:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Class</th>
+<th class="tableblock halign-left valign-top">Source</th>
+<th class="tableblock halign-left valign-top">Javadoc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ComparableItem</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ComparableItem.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ComparableItem.html">Javadoc</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ComparableListItemChangeDetector</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ComparableListItemChangeDetector.java">Source</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ComparableListItemChangeDetector.html">Javadoc</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_absolute_vs_sequential_list_positions"><a class="anchor" href="#_absolute_vs_sequential_list_positions"></a>Absolute vs Sequential List Positions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><code>ListItemChangeDetector</code> and <code>ComparableListItemChangeDetector</code> report positions with respect to the old and new lists.
+This is useful when you want to describe what changed between two snapshots.</p>
+</div>
+<div class="paragraph">
+<p><code>SequentialListItemChangeDetector</code> and <code>ComparableSequentialListItemChangeDetector</code> report positions as if changes are applied in returned order to the old list.
+This is useful when you want to replay the changes against an existing list.</p>
+</div>
+<div class="paragraph">
+<p>For a simple swap from <code>[A, B]</code> to <code>[B, A]</code>, the absolute detector reports both items as moved.
+The sequential detector can report a single move that transforms the old list into the new list.</p>
+</div>
+<div class="imageblock"><div class="mermaid content" style=" ">flowchart LR
+    old["Old list: A, B"] --> absolute["Absolute detector"]
+    new["New list: B, A"] --> absolute
+    absolute --> absA["A moved 0 to 1"]
+    absolute --> absB["B moved 1 to 0"]
+
+    old --> sequential["Sequential detector"]
+    new --> sequential
+    sequential --> seqMove["Move A from 0 to 1"]
+    seqMove --> result["Working list becomes B, A"]</div></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_change_ordering"><a class="anchor" href="#_change_ordering"></a>Change Ordering</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Detectors build changes in this order:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>removals</p>
+</li>
+<li>
+<p>insertions</p>
+</li>
+<li>
+<p>moves, for list detectors</p>
+</li>
+<li>
+<p>updates</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Sequential list detectors update their internal working copy after removals, insertions, and moves so later positions refer to the list state after earlier returned changes.</p>
+</div>
+</div>
+</div>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>Made with ♥ from <strong>BCN</strong></p>
+</footer>
+<script id="site-script" src="../../_/js/site.js" data-ui-root-path="../../_"></script>
+<script async src="../../_/js/vendor/highlight.js"></script>
+<script src="../../_/js/vendor/lunr.js"></script>
+<script src="../../_/js/search-ui.js" id="search-ui-script" data-site-root-path="../.." data-snippet-length="100" data-stylesheet="../../_/css/search.css"></script>
+<script async src="../../search-index.js"></script>
+  </body>
+</html>

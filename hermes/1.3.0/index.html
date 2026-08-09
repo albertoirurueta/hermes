@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Hermes :: Hermes</title>
+    <meta name="description" content="Hermes is a Java library that detects differences between two versions of a collection, reporting inserted, removed, updated, and moved items for lists and collections.">
+    <meta name="keywords" content="Hermes, Java library, collection diff, list diff, change detection, item change detector, Java 17, data synchronization">
+    <meta name="generator" content="Antora 3.1.15">
+    <link rel="stylesheet" href="../../_/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../../_/img/logo.svg">
+  </head>
+  <body class="article">
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'; mermaid.initialize({"startOnLoad":true}); </script><header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="../.."><img src="../../_/img/logo.svg" alt="Hermes" class="navbar-brand-logo">Hermes</a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs" autofocus>
+        </div>
+      </div>
+      <button class="navbar-burger" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu" style="display: none;">
+      <div class="navbar-end">
+        <a class="navbar-item" href="#">Home</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">Products</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="#">Product A</a>
+            <a class="navbar-item" href="#">Product B</a>
+            <a class="navbar-item" href="#">Product C</a>
+          </div>
+        </div>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">Services</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="#">Service A</a>
+            <a class="navbar-item" href="#">Service B</a>
+            <a class="navbar-item" href="#">Service C</a>
+          </div>
+        </div>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button is-primary" href="#">Download</a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="hermes" data-version="1.3.0">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Hermes</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item is-current-page" data-depth="1">
+    <a class="nav-link" href="index.html">Hermes</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="getting-started.html">Getting Started</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="detectors.html">Choosing a Detector</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="examples.html">Examples</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="change-results.html">Change Results</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="reference.html">Reference</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Hermes</span>
+    <span class="version">1.3.0</span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Hermes</a></div>
+      <ul class="versions">
+        <li class="version is-current is-latest">
+          <a href="index.html">1.3.0</a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link is-current"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Hermes</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/albertoirurueta/hermes/edit/develop/docs/modules/ROOT/pages/index.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Hermes</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+This documentation was generated with the assistance of AI. Please report any inaccuracies.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Hermes is a small Java library for detecting differences between two versions of a collection.
+It reports which items were inserted, removed, updated, and, for lists, moved to a different position.</p>
+</div>
+<div class="paragraph">
+<p>The library is useful when an application receives a refreshed set of data and needs to turn that difference into explicit operations.
+Common examples include synchronizing UI lists, producing audit events, updating cached data, applying remote changes, or sending compact change notifications instead of replacing an entire collection.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How It Works</h2>
+<div class="sectionbody">
+<div class="imageblock"><div class="mermaid content" style=" ">flowchart LR
+    oldItems["Old items"] --> detector["Hermes detector"]
+    newItems["New items"] --> detector
+    detector --> identity["Match by item identity"]
+    identity --> content["Compare matched item content"]
+    content --> changes["Change objects"]
+    changes --> inserted["INSERTED"]
+    changes --> removed["REMOVED"]
+    changes --> updated["UPDATED"]
+    changes --> moved["MOVED for lists"]</div></div>
+<div class="paragraph">
+<p>Hermes compares two snapshots.
+First it decides which objects represent the same logical item.
+Then it compares content for matched items and returns explicit change objects.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_hermes_compares"><a class="anchor" href="#_what_hermes_compares"></a>What Hermes Compares</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Hermes intentionally separates two ideas that are often mixed together:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Item identity</dt>
+<dd>
+<p>Whether two objects represent the same logical item, such as two records with the same id.</p>
+</dd>
+<dt class="hdlist1">Item content</dt>
+<dd>
+<p>Whether the data inside that logical item has changed.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>This means an item can be recognized as the same item even when its content is different.
+For example, <code>Item(2, "draft")</code> and <code>Item(2, "published")</code> can match by id while still producing an <code>UPDATED</code> change.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_supported_change_types"><a class="anchor" href="#_supported_change_types"></a>Supported Change Types</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>For general collections, Hermes detects:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>INSERTED</code></p>
+</li>
+<li>
+<p><code>REMOVED</code></p>
+</li>
+<li>
+<p><code>UPDATED</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>For lists, Hermes also detects:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>MOVED</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>List detectors include positions in the returned change objects.
+Hermes provides both absolute-position list detection and sequential-position list detection, so you can choose whether positions refer to the original/new lists or to a sequence of edits applied one after another.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_main_apis"><a class="anchor" href="#_main_apis"></a>Main APIs</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Use these classes from <code>com.irurueta.hermes</code>:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>CollectionItemChangeDetector</code></p>
+</li>
+<li>
+<p><code>ComparableCollectionItemChangeDetector</code></p>
+</li>
+<li>
+<p><code>ListItemChangeDetector</code></p>
+</li>
+<li>
+<p><code>ComparableListItemChangeDetector</code></p>
+</li>
+<li>
+<p><code>SequentialListItemChangeDetector</code></p>
+</li>
+<li>
+<p><code>ComparableSequentialListItemChangeDetector</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Start with <a href="getting-started.html" class="xref page">Getting Started</a> if you want a dependency snippet and first example.
+Use <a href="detectors.html" class="xref page">Choosing a Detector</a> to choose the detector that fits your collection type.</p>
+</div>
+</div>
+</div>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>Made with ♥ from <strong>BCN</strong></p>
+</footer>
+<script id="site-script" src="../../_/js/site.js" data-ui-root-path="../../_"></script>
+<script async src="../../_/js/vendor/highlight.js"></script>
+<script src="../../_/js/vendor/lunr.js"></script>
+<script src="../../_/js/search-ui.js" id="search-ui-script" data-site-root-path="../.." data-snippet-length="100" data-stylesheet="../../_/css/search.css"></script>
+<script async src="../../search-index.js"></script>
+  </body>
+</html>
