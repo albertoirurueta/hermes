@@ -14,11 +14,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up JDK 17
+    - name: Set up JDK 21
       uses: actions/setup-java@v5
       with:
         distribution: adopt
-        java-version: 17
+        java-version: 21
         server-id: central # Value of the distributionManagement/repository/id field of the pom.xml
         server-username: OSSRH_USERNAME # env variable for username in deploy
         server-password: OSSRH_PASSWORD # env variable for token in deploy
@@ -30,32 +30,38 @@ jobs:
         mvn clean jacoco:prepare-agent install jacoco:report javadoc:jar source:jar -P '!build-extras'
         mvn site -Djacoco.skip -DskipTests -P '!build-extras'
 
-    - name: Setup sonarqube
-      uses: warchant/setup-sonar-scanner@v8
-
-    - name: Send to sonarqube
+    - name: Run SonarCloud analysis
       env:
         # to get access to secrets.SONAR_TOKEN, provide GITHUB_TOKEN
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: sonar-scanner
-        -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+      run: mvn sonar:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
     - name: Install Node
       uses: actions/setup-node@v4
       with:
         node-version: 24
+        cache: npm
+        cache-dependency-path: docs/package-lock.json
 
-    - name: Install Antora
-      run: |
-        mkdir docs && cd docs
-        npm i -D -E antora
-        npm i @antora/lunr-extension
-        npm i @sntke/antora-mermaid-extension
-        npm i @djencks/asciidoctor-mathjax
+    - name: Install docs toolchain
+      working-directory: docs
+      run: npm ci
+
+    - name: Show Antora version
+      working-directory: docs
+      run: npx antora -v
+
+    - name: Validate Mermaid diagrams
+      working-directory: docs
+      run: npm i --no-save mermaid@11 jsdom@31 puppeteer@25 && npm run validate:mermaid
 
     - name: Build Antora docs
-      run: cd docs && npx antora antora-playbook.yml
+      working-directory: docs
+      run: npx antora antora-playbook.yml
+
+    - name: Index the site for search
+      working-directory: docs
+      run: npx pagefind --site build/site
 
     - name: Merge documentation
       run: |

@@ -1,6 +1,6 @@
 # Hermes
 
-🪽 A Java 17 library to detect changes between collection items.
+🪽 A Java 21 library to detect changes between collection items.
 
 Hermes compares two versions of a collection and reports explicit changes: inserted, removed, updated, and, for ordered lists, moved items.
 It is useful when an application receives refreshed data and needs to synchronize a UI, update a cache, publish audit events, or send compact change notifications instead of replacing a whole collection.
@@ -27,10 +27,10 @@ The name reflects the library's purpose: carrying precise information about what
 
 | Area | Status                                                           |
 | --- |------------------------------------------------------------------|
-| Language | Java 17                                                          |
+| Language | Java 21                                                          |
 | Build tool | Maven                                                            |
 | Current development version | `1.4.0-SNAPSHOT`                                                 |
-| Latest release shown here | `1.3.0`                                                          |
+| Latest release shown here | `1.3.1`                                                          |
 | License | Apache License 2.0                                               |
 | CI | GitHub Actions for release and `develop` branch builds           |
 | Quality | SonarCloud, JaCoCo, Surefire, Javadoc, Checkstyle, SpotBugs, PMD |
@@ -50,7 +50,7 @@ Latest release:
 <dependency>
     <groupId>com.irurueta</groupId>
     <artifactId>hermes</artifactId>
-    <version>1.3.0</version>
+    <version>1.3.1</version>
     <scope>compile</scope>
 </dependency>
 ```
@@ -142,7 +142,7 @@ The previous example reports:
 
 ### Requirements
 
-- JDK 17
+- JDK 21
 - Maven
 - Node.js 24 or newer, only needed to build the Antora documentation locally
 
@@ -176,11 +176,11 @@ Useful generated reports:
 ### Build Documentation
 
 The Antora project lives under `docs`.
-Install the documentation dependencies once:
+Install the documentation toolchain (Node.js 20+; versions are pinned in `docs/package-lock.json`):
 
 ```bash
 cd docs
-npm install
+npm ci
 ```
 
 Generate the documentation site:
@@ -188,7 +188,11 @@ Generate the documentation site:
 ```bash
 cd docs
 npx antora antora-playbook.yml
+npx pagefind --site build/site
 ```
+
+Search only works when the site is served over HTTP (for example `python3 -m http.server --directory build/site`),
+not when opened from `file://`.
 
 The Antora site is generated in:
 

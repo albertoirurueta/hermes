@@ -1,4 +1,6 @@
 = Choosing a Detector
+:description: Compare Hermes detector classes for collections and lists, choose between custom comparators and ComparableItem, and pick absolute or sequential list positions.
+:keywords: Hermes detectors, CollectionItemChangeDetector, ListItemChangeDetector, ComparableItem, SequentialListItemChangeDetector, absolute positions, sequential positions
 
 Hermes offers detector classes for three decisions:
 
@@ -92,6 +94,19 @@ var detector = new CollectionItemChangeDetector<Product>(
                 && left.price().compareTo(right.price()) == 0);
 ----
 
+Classes used in this example:
+
+[cols="1,1,1",options="header"]
+|===
+|Class
+|Source
+|Javadoc
+
+|`CollectionItemChangeDetector`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/CollectionItemChangeDetector.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/CollectionItemChangeDetector.html[Javadoc]
+|===
+
 == ComparableItem
 
 Use comparable detectors when the item type can carry its own comparison rules.
@@ -129,6 +144,23 @@ After that, detector construction is simpler:
 var detector = new ComparableListItemChangeDetector<Product>();
 var changes = detector.detectChanges(newProducts, oldProducts);
 ----
+
+Classes used in these examples:
+
+[cols="1,1,1",options="header"]
+|===
+|Class
+|Source
+|Javadoc
+
+|`ComparableItem`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ComparableItem.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ComparableItem.html[Javadoc]
+
+|`ComparableListItemChangeDetector`
+|https://github.com/albertoirurueta/hermes/blob/main/src/main/java/com/irurueta/hermes/ComparableListItemChangeDetector.java[Source]
+|https://albertoirurueta.github.io/hermes/mvn-site/apidocs/com/irurueta/hermes/ComparableListItemChangeDetector.html[Javadoc]
+|===
 
 == Absolute vs Sequential List Positions
 

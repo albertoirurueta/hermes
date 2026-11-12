@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Hermes is a Java 17 library that detects changes between two versions of a collection (inserted, removed, updated,
+Hermes is a Java 21 library that detects changes between two versions of a collection (inserted, removed, updated,
 and — for lists — moved items). It compares items using two independent notions: **identity** (do two items
 represent the same logical entity, e.g. same id) and **content equality** (has that entity's data changed). It has
 no runtime dependencies; only JUnit 5 and Mockito are used, in test scope.
@@ -39,13 +39,17 @@ mvn site -Djacoco.skip -DskipTests -P '!build-extras'
 
 Generated reports land under `target/site` (`apidocs/index.html`, `jacoco/index.html`, `surefire-report.html`).
 
-Build the Antora documentation (requires Node.js 24+, only needed for docs work):
+Build the Antora documentation (Antora 3.2.2, requires Node.js 20+, only needed for docs work):
 
 ```bash
 cd docs
-npm install
+npm ci
 npx antora antora-playbook.yml
+npx pagefind --site build/site
 ```
+
+Search uses Pagefind (UI overrides in `docs/ui-overrides/`) and only works when `build/site` is served over HTTP.
+Validate Mermaid diagrams with `npm i --no-save mermaid@11 jsdom@31 puppeteer@25 && npm run validate:mermaid`.
 
 Output goes to `docs/build/site`. Documentation pages live under `docs/modules/ROOT/pages`.
 
@@ -98,3 +102,6 @@ the `validate` phase in `pom.xml` (captures version, commit, branch, timestamp f
 - Use `final var` for locals throughout (see any existing class for style).
 - Every public and protected member has Javadoc, including `@param`/`@return`/`@throws`; match this when adding
   API surface, since Checkstyle and the Javadoc plugin enforce documentation in the site build.
+- Every source and test file starts with the Apache License 2.0 header (`Copyright (C) 2025 Alberto Irurueta Carro
+  (alberto@irurueta.com)`), matching the license in the project root. Copy it verbatim from an existing file for any
+  new file.
