@@ -26,3 +26,5 @@ src/main/resources/com/irurueta/hermes/build-info.properties
 /docs/build/
 /target/
 .idea
+
+node_modules/

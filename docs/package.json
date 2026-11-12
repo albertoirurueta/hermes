@@ -1,10 +1,17 @@
 {
-  "devDependencies": {
-    "@sntke/antora-mermaid-extension": "^0.0.13",
-    "antora": "3.1.15"
+  "private": true,
+  "scripts": {
+    "build": "antora antora-playbook.yml",
+    "search:index": "pagefind --site build/site",
+    "validate:mermaid": "node scripts/mermaid/validate-mermaid.mjs modules --render"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
-    "@antora/lunr-extension": "^1.0.0-alpha.13",
-    "@djencks/asciidoctor-mathjax": "^0.0.9"
+    "@djencks/asciidoctor-mathjax": "0.0.9",
+    "@sntke/antora-mermaid-extension": "0.0.13",
+    "antora": "3.2.2",
+    "pagefind": "1.6.0"
   }
 }
