@@ -39,13 +39,17 @@ mvn site -Djacoco.skip -DskipTests -P '!build-extras'
 
 Generated reports land under `target/site` (`apidocs/index.html`, `jacoco/index.html`, `surefire-report.html`).
 
-Build the Antora documentation (requires Node.js 24+, only needed for docs work):
+Build the Antora documentation (Antora 3.2.2, requires Node.js 20+, only needed for docs work):
 
 ```bash
 cd docs
-npm install
+npm ci
 npx antora antora-playbook.yml
+npx pagefind --site build/site
 ```
+
+Search uses Pagefind (UI overrides in `docs/ui-overrides/`) and only works when `build/site` is served over HTTP.
+Validate Mermaid diagrams with `npm i --no-save mermaid@11 jsdom@31 puppeteer@25 && npm run validate:mermaid`.
 
 Output goes to `docs/build/site`. Documentation pages live under `docs/modules/ROOT/pages`.
 

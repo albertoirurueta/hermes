@@ -176,11 +176,11 @@ Useful generated reports:
 ### Build Documentation
 
 The Antora project lives under `docs`.
-Install the documentation dependencies once:
+Install the documentation toolchain (Node.js 20+; versions are pinned in `docs/package-lock.json`):
 
 ```bash
 cd docs
-npm install
+npm ci
 ```
 
 Generate the documentation site:
@@ -188,7 +188,11 @@ Generate the documentation site:
 ```bash
 cd docs
 npx antora antora-playbook.yml
+npx pagefind --site build/site
 ```
+
+Search only works when the site is served over HTTP (for example `python3 -m http.server --directory build/site`),
+not when opened from `file://`.
 
 The Antora site is generated in:
 
