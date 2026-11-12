@@ -37,7 +37,11 @@ jobs:
 
           NEXT_MINOR=$((MINOR + 1))
           NEXT_SNAPSHOT="${MAJOR}.${NEXT_MINOR}.0-SNAPSHOT"
-          SYNC_BRANCH="sync_${MAJOR}.${NEXT_MINOR}.0"
+          # Name the sync branch after the release itself, not the next snapshot: a patch release (1.3.1)
+          # computes the same next snapshot as the minor release before it (1.3.0 -> 1.4.0-SNAPSHOT), so a
+          # snapshot-based name would collide with that earlier, already-merged sync branch and the guard
+          # below would skip this release.
+          SYNC_BRANCH="sync_${RELEASE_VERSION}"
 
           echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
           echo "next_snapshot=$NEXT_SNAPSHOT" >> "$GITHUB_OUTPUT"
