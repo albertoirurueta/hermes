@@ -1,4 +1,5 @@
 * xref:index.adoc[]
+* xref:whats-new.adoc[]
 * xref:getting-started.adoc[]
 * xref:detectors.adoc[]
 * xref:examples.adoc[]

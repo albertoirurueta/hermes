@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-12
+
+### Changed
+
+- Minimum required Java version raised from 17 to 21.
+- Test dependencies updated (JUnit Jupiter 5.13.4, Mockito 5.19.0); still no runtime dependencies.
+- Build and quality plugins updated, and SonarCloud scanner plugin added.
+- Documentation site: Pagefind search, validated Mermaid diagrams, class/source/Javadoc reference tables, and
+  improved page descriptions.
+
 ## [1.3.0] - 2026-06-29
 
 ### Added
@@ -42,7 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `ComparableItem` interface for item types that implement identity and content equality themselves, as an
   alternative to supplying custom `ItemComparator`/`ItemContentComparator` instances.
 
-[Unreleased]: https://github.com/albertoirurueta/hermes/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/albertoirurueta/hermes/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/albertoirurueta/hermes/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/albertoirurueta/hermes/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/albertoirurueta/hermes/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/albertoirurueta/hermes/compare/1.0.0...1.1.0
